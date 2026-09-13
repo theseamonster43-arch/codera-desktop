@@ -1,0 +1,148 @@
+/* Codera for the desktop.
+ *
+ * The same palette and typeface as the app and the website. The brand gradient
+ * is kept for the things that are Codera itself — the mark, Plus, and the one
+ * main action on a screen — so it still means something when it appears.
+ */
+
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-Medium.ttf') format('truetype'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-SemiBold.ttf') format('truetype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-ExtraBold.ttf') format('truetype'); font-weight: 800 900; font-display: swap; }
+
+:root {
+  --green: #22c55e;
+  --blue: #3b82f6;
+  --sky: #60a5fa;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --brand: linear-gradient(120deg, var(--green), var(--sky));
+
+  --bg: #f5f7f6;
+  --bg2: #ffffff;
+  --bg3: #ebefec;
+  --line: rgba(22, 101, 52, 0.14);
+  --text: #0f1a14;
+  --muted: #56655b;
+  --hover: rgba(15, 26, 20, 0.06);
+
+  --titlebar: 46px;
+  --sidebar: 232px;
+  --radius: 14px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #080c0a;
+    --bg2: #0e1512;
+    --bg3: #141d18;
+    --line: rgba(34, 197, 94, 0.12);
+    --text: #e2e8e4;
+    --muted: #7a8b7e;
+    --hover: rgba(226, 232, 228, 0.06);
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 500 14px/1.45 'Scoutie Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+#app { height: 100%; }
+
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+input, textarea, [contenteditable], .selectable { user-select: text; }
+::selection { background: rgba(59, 130, 246, 0.3); }
+
+/* Scrollbars that appear only when wanted, the way desktop apps now do. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: transparent; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+:hover::-webkit-scrollbar-thumb { background-color: var(--line); }
+::-webkit-scrollbar-track { background: transparent; }
+
+.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- buttons ------------------------------------------------------------------ */
+
+.btn {
+  height: 38px; padding: 0 16px; border-radius: 11px; border: 1px solid var(--line);
+  background: var(--bg2); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-weight: 700; white-space: nowrap; transition: background .12s, transform .1s, border-color .12s;
+}
+.btn:hover { background: var(--bg3); }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .5; cursor: default; transform: none; }
+.btn.brand { background: var(--brand); color: #fff; border: 0; }
+.btn.brand:hover { filter: brightness(1.06); }
+.btn.danger { color: var(--red); }
+.btn.big { height: 50px; border-radius: 14px; font-size: 15.5px; font-weight: 800; padding: 0 22px; }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.ghost:hover { background: var(--hover); }
+.btn .i { width: 18px; height: 18px; }
+
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 10px; border: 0; background: transparent;
+  display: grid; place-items: center; color: var(--muted); transition: background .12s, color .12s;
+}
+.icon-btn:hover { background: var(--hover); color: var(--text); }
+
+.field {
+  width: 100%; height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--bg2); outline: none; font-size: 14.5px; transition: border-color .12s;
+}
+.field:focus { border-color: var(--blue); }
+textarea.field { height: auto; padding: 12px 14px; resize: vertical; line-height: 1.55; }
+.field::placeholder { color: var(--muted); }
+
+.label {
+  font-size: 11.5px; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 8px;
+}
+.muted { color: var(--muted); }
+.err { color: var(--red); font-weight: 600; font-size: 13.5px; }
+
+.chip {
+  height: 32px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--bg2); font-weight: 700; font-size: 13px; transition: background .12s;
+}
+.chip:hover { background: var(--bg3); }
+.chip.on { background: var(--text); color: var(--bg); border-color: transparent; }
+
+.plus-tag {
+  display: inline-flex; align-items: center; height: 19px; padding: 0 7px; border-radius: 6px;
+  background: var(--brand); color: #fff; font-size: 10.5px; font-weight: 900; letter-spacing: .9px;
+}
+
+/* ---- motion --------------------------------------------------------------------- */
+
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.page { animation: rise .32s cubic-bezier(.22, .9, .3, 1) both; }
+.stagger > * { animation: rise .42s cubic-bezier(.22, .9, .3, 1) both; animation-delay: calc(var(--i, 0) * 30ms); }
+
+.spinner {
+  width: 22px; height: 22px; border-radius: 999px; border: 2.5px solid var(--line);
+  border-top-color: var(--blue); animation: spin .7s linear infinite;
+}
+
+.skeleton {
+  border-radius: var(--radius);
+  background: linear-gradient(100deg, var(--bg2) 30%, var(--bg3) 48%, var(--bg2) 66%);
+  background-size: 200% 100%; animation: shimmer 1.25s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
