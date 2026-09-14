@@ -1,0 +1,20 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Codera",
+        "width": 1320,
+        "height": 840,
+        "minWidth": 960,
+        "minHeight": 620,
+        "center": true,
+        "resizable": true,
+        "decorations": false,
+        "backgroundColor": "#080c0a",
+        "useHttpsScheme": true,
+        "shadow": true
+      }
+    ]
+  }
+}

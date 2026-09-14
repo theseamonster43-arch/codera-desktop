@@ -15,8 +15,10 @@
   let menuOpen = $state(false);
 
   // On a Mac the system's own red, yellow and green buttons sit over the left end of
-  // this bar, so it leaves them room. On Windows they live in the real title bar above.
+  // this bar; on Windows the minimise, maximise and close buttons sit over the right end.
+  // The bar leaves room for whichever it has.
   const mac = inTauri && navigator.userAgent.includes('Mac');
+  const win = inTauri && !mac;
 
   // Ctrl+K from anywhere puts you in the search box, as in most desktop apps.
   function keys(e: KeyboardEvent) {
@@ -40,7 +42,7 @@
 <!-- The bar itself is the window's handle: drag it to move, double-click to
      maximise. The controls inside it opt out of dragging by being buttons. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<header class="bar" class:mac data-tauri-drag-region ondblclick={e => e.target === e.currentTarget && toggleMaximize()}>
+<header class="bar" class:mac class:win data-tauri-drag-region ondblclick={e => e.target === e.currentTarget && toggleMaximize()}>
   <div class="left" data-tauri-drag-region>
     <button class="icon-btn" onclick={onToggleSidebar} aria-label="Menu" title="Menu">
       <svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
@@ -126,4 +128,5 @@
   .menu .danger { color: var(--red); }
 
   .bar.mac { padding-left: 84px; }
+  .bar.win { padding-right: 138px; }
 </style>

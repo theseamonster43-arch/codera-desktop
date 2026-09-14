@@ -50,11 +50,33 @@
     "shortDescription": "Codera for desktop",
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "template": "installer/installer.nsi",
+        "sidebarImage": "installer/sidebar.bmp",
+        "headerImage": "installer/header.bmp",
+        "uninstallerHeaderImage": "installer/header.bmp",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico"
       }
     },
     "macOS": {
-      "minimumSystemVersion": "10.15"
-    }
+      "minimumSystemVersion": "10.15",
+      "dmg": {
+        "background": "installer/dmg-background.png",
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        },
+        "appPosition": {
+          "x": 180,
+          "y": 220
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 220
+        }
+      }
+    },
+    "copyright": "© 2026 Codera"
   }
 }

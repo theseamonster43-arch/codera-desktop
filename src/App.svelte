@@ -12,6 +12,7 @@
   import Plus from './pages/Plus.svelte';
   import Compose from './pages/Compose.svelte';
   import Mini from './pages/Mini.svelte';
+  import WindowControls from './components/WindowControls.svelte';
   import { session, startSession } from './lib/state.svelte';
   import { route, back } from './lib/router.svelte';
   import { inTauri } from './lib/native';
@@ -35,8 +36,8 @@
 
   const needsName = $derived(session.user && session.profileReady && !session.profile.username);
 
-  // On a Mac the window has no separate title bar, so screens without Codera's own bar
-  // (sign in, choosing a name) keep a strip along the top to move the window by.
+  // The window has no system title bar, so screens without Codera's own bar
+  // (loading, sign in, choosing a name) keep a strip along the top to move the window by.
   const mac = inTauri && navigator.userAgent.includes('Mac');
   const inShell = $derived(!!(session.ready && session.user && session.profileReady && !needsName));
 
@@ -73,7 +74,8 @@
   </div>
 {/if}
 
-{#if mac && !inShell && route.name !== 'mini'}<div class="topdrag" data-tauri-drag-region></div>{/if}
+{#if inTauri && !inShell && route.name !== 'mini'}<div class="topdrag" data-tauri-drag-region></div>{/if}
+{#if route.name !== 'mini'}<WindowControls />{/if}
 
 <Sheet />
 

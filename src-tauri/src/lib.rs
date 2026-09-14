@@ -15,8 +15,8 @@ pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_notification::init())
     .plugin(tauri_plugin_opener::init())
-    // Windows keeps its real title bar and buttons; each window's bar is tinted to
-    // Codera's background once its page loads, and again if the system theme flips.
+    // On Windows each window's frame is tinted to Codera's background once its page
+    // loads, and again if the system theme flips.
     .on_page_load(|webview, _| {
       #[cfg(windows)]
       caption::paint(&webview.window());
@@ -74,12 +74,11 @@ pub fn run() {
     .expect("error while running Codera");
 }
 
-/// The colour of the real Windows title bar.
+/// The colour of the window's frame on Windows.
 ///
-/// Windows 11 lets an app tint its caption through DWM, so the system's own
-/// minimise, maximise and close buttons stay — snap layouts and all — while the
-/// bar matches the app instead of sitting above it in grey. Windows 10 ignores
-/// the request and keeps its usual bar, which is fine.
+/// The main window draws its own title bar, but Windows 11 still paints a thin
+/// border around it; DWM lets an app tint that to Codera's background instead of
+/// grey. Windows 10 ignores the request, which is fine.
 #[cfg(windows)]
 mod caption {
   use std::ffi::c_void;
