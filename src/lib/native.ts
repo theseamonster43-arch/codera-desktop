@@ -60,8 +60,8 @@ export async function popOut(postId: string, at: number) {
     minWidth: 320,
     minHeight: 200,
     alwaysOnTop: true,
-    decorations: false,
-    shadow: true,
+    // The system title bar, so minimise, maximise and close are always there.
+    decorations: true,
     resizable: true,
     // Same scheme as the main window, so both share one origin and one sign-in.
     useHttpsScheme: true,

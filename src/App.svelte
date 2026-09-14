@@ -14,6 +14,7 @@
   import Mini from './pages/Mini.svelte';
   import { session, startSession } from './lib/state.svelte';
   import { route, back } from './lib/router.svelte';
+  import { inTauri } from './lib/native';
 
   startSession();
 
@@ -33,6 +34,11 @@
   $effect(() => { route.name; route.arg; main?.scrollTo({ top: 0 }); });
 
   const needsName = $derived(session.user && session.profileReady && !session.profile.username);
+
+  // On a Mac the window has no separate title bar, so screens without Codera's own bar
+  // (sign in, choosing a name) keep a strip along the top to move the window by.
+  const mac = inTauri && navigator.userAgent.includes('Mac');
+  const inShell = $derived(!!(session.ready && session.user && session.profileReady && !needsName));
 
   // Mouse back / forward buttons, and Alt+Left, move through history.
   function mouse(e: MouseEvent) { if (e.button === 3) back(); if (e.button === 4) history.forward(); }
@@ -67,6 +73,8 @@
   </div>
 {/if}
 
+{#if mac && !inShell && route.name !== 'mini'}<div class="topdrag" data-tauri-drag-region></div>{/if}
+
 <Sheet />
 
 <style>
@@ -80,6 +88,7 @@
   .shell :global(.side) { grid-area: side; }
   main { grid-area: main; overflow-y: auto; overflow-x: hidden; min-width: 0; position: relative; scroll-behavior: auto; }
 
+  .topdrag { position: fixed; inset: 0 0 auto; height: 32px; z-index: 40; }
   .boot { height: 100%; display: grid; place-items: center; position: relative; }
   .drag { position: absolute; inset: 0 0 auto; height: var(--titlebar); }
   .pulse { animation: breathe 1.6s ease-in-out infinite; }

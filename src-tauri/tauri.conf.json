@@ -20,10 +20,15 @@
         "minHeight": 620,
         "center": true,
         "resizable": true,
-        "decorations": false,
-        "shadow": true,
+        "decorations": true,
         "backgroundColor": "#080c0a",
-        "useHttpsScheme": true
+        "useHttpsScheme": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 18,
+          "y": 17
+        }
       }
     ],
     "security": {
@@ -47,6 +52,9 @@
       "nsis": {
         "installMode": "currentUser"
       }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15"
     }
   }
 }

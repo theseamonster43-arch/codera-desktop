@@ -2,7 +2,7 @@
   import Icon from './Icon.svelte';
   import Mark from './Mark.svelte';
   import Avatar from './Avatar.svelte';
-  import { inTauri, minimize, toggleMaximize, closeWindow } from '../lib/native';
+  import { inTauri, toggleMaximize } from '../lib/native';
   import { session, myName, myPhoto } from '../lib/state.svelte';
   import { go, route } from '../lib/router.svelte';
   import { signOut } from 'firebase/auth';
@@ -14,8 +14,9 @@
   let searchEl: HTMLInputElement | undefined = $state();
   let menuOpen = $state(false);
 
-  // A Mac gets its own red, yellow and green buttons on the left; Windows gets them on the right.
-  const mac = navigator.userAgent.includes('Mac');
+  // On a Mac the system's own red, yellow and green buttons sit over the left end of
+  // this bar, so it leaves them room. On Windows they live in the real title bar above.
+  const mac = inTauri && navigator.userAgent.includes('Mac');
 
   // Ctrl+K from anywhere puts you in the search box, as in most desktop apps.
   function keys(e: KeyboardEvent) {
@@ -39,15 +40,8 @@
 <!-- The bar itself is the window's handle: drag it to move, double-click to
      maximise. The controls inside it opt out of dragging by being buttons. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<header class="bar" data-tauri-drag-region ondblclick={e => e.target === e.currentTarget && toggleMaximize()}>
+<header class="bar" class:mac data-tauri-drag-region ondblclick={e => e.target === e.currentTarget && toggleMaximize()}>
   <div class="left" data-tauri-drag-region>
-    {#if inTauri && mac}
-      <div class="lights">
-        <button class="red" onclick={closeWindow} aria-label="Close"></button>
-        <button class="yellow" onclick={minimize} aria-label="Minimise"></button>
-        <button class="green" onclick={toggleMaximize} aria-label="Zoom"></button>
-      </div>
-    {/if}
     <button class="icon-btn" onclick={onToggleSidebar} aria-label="Menu" title="Menu">
       <svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
     </button>
@@ -87,13 +81,6 @@
       {/if}
     </div>
 
-    {#if inTauri && !mac}
-      <div class="win">
-        <button onclick={minimize} aria-label="Minimise"><Icon name="winMin" size={16} /></button>
-        <button onclick={toggleMaximize} aria-label="Maximise"><Icon name="winMax" size={16} /></button>
-        <button class="close" onclick={closeWindow} aria-label="Close"><Icon name="winClose" size={16} /></button>
-      </div>
-    {/if}
   </div>
 </header>
 
@@ -138,18 +125,5 @@
   .menu button:hover { background: var(--hover); }
   .menu .danger { color: var(--red); }
 
-  .lights { display: flex; gap: 8px; padding: 0 10px 0 6px; }
-  .lights button { width: 12px; height: 12px; border-radius: 99px; border: 0; padding: 0; }
-  .lights .red { background: #ff5f57; }
-  .lights .yellow { background: #febc2e; }
-  .lights .green { background: #28c840; }
-  .lights:hover button { filter: brightness(.9); }
-
-  .win { display: flex; height: var(--titlebar); }
-  .win button {
-    width: 46px; height: 100%; border: 0; background: transparent; color: var(--text);
-    display: grid; place-items: center; transition: background .1s;
-  }
-  .win button:hover { background: var(--hover); }
-  .win .close:hover { background: #e81123; color: #fff; }
+  .bar.mac { padding-left: 84px; }
 </style>
