@@ -7,6 +7,7 @@
   import { go, route } from '../lib/router.svelte';
   import { signOut } from 'firebase/auth';
   import { auth } from '../lib/firebase';
+  import { frame, toggleFullscreen, showLights } from '../lib/frame.svelte';
 
   let { onToggleSidebar }: { onToggleSidebar: () => void } = $props();
 
@@ -17,11 +18,27 @@
   // On a Mac the system's own red, yellow and green buttons sit over the left end of
   // this bar; on Windows the minimise, maximise and close buttons sit over the right end.
   // The bar leaves room for whichever it has.
+  // In fullscreen on a Mac the lights hide, the bar closes the gap they leave, and
+  // pointing at the bar brings them back.
   const mac = inTauri && navigator.userAgent.includes('Mac');
   const win = inTauri && !mac;
+  let peek = $state(false);
+
+  function point(over: boolean) {
+    if (!mac || !frame.fullscreen) return;
+    peek = over;
+    showLights(over);
+  }
+  $effect(() => { if (!frame.fullscreen) peek = false; });
 
   // Ctrl+K from anywhere puts you in the search box, as in most desktop apps.
   function keys(e: KeyboardEvent) {
+    // Ctrl+Cmd+F: fullscreen, as in every Mac app.
+    if (mac && e.ctrlKey && e.metaKey && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      toggleFullscreen();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
       searchEl?.focus();
@@ -40,9 +57,14 @@
 <svelte:window onkeydown={keys} onclick={() => (menuOpen = false)} />
 
 <!-- The bar itself is the window's handle: drag it to move, double-click to
-     maximise. The controls inside it opt out of dragging by being buttons. -->
+     maximise (on Windows; the green button does that on a Mac). The controls
+     inside it opt out of dragging by being buttons. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<header class="bar" class:mac class:win data-tauri-drag-region ondblclick={e => e.target === e.currentTarget && toggleMaximize()}>
+<header
+  class="bar" class:mac class:win class:fs={mac && frame.fullscreen} class:peek data-tauri-drag-region
+  ondblclick={e => win && e.target === e.currentTarget && toggleMaximize()}
+  onmouseenter={() => point(true)} onmouseleave={() => point(false)}
+>
   <div class="left" data-tauri-drag-region>
     <button class="icon-btn" onclick={onToggleSidebar} aria-label="Menu" title="Menu">
       <svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
@@ -127,6 +149,8 @@
   .menu button:hover { background: var(--hover); }
   .menu .danger { color: var(--red); }
 
-  .bar.mac { padding-left: 84px; }
+  .bar.mac { padding-left: 84px; transition: padding-left .18s cubic-bezier(.2, .9, .3, 1); }
+  .bar.mac.fs { padding-left: 12px; }
+  .bar.mac.fs.peek { padding-left: 84px; }
   .bar.win { padding-right: 138px; }
 </style>

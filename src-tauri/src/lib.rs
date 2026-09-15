@@ -31,6 +31,7 @@ pub fn run() {
         let _ = window;
       }
     })
+    .invoke_handler(tauri::generate_handler![codera_fullscreen, codera_lights])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -39,6 +40,9 @@ pub fn run() {
             .build(),
         )?;
       }
+
+      #[cfg(target_os = "macos")]
+      mac::setup(app.handle());
 
       // The tray: a way back to the window, and a way out.
       let show = MenuItem::with_id(app, "show", "Open Codera", true, None::<&str>)?;
@@ -108,6 +112,155 @@ mod caption {
         DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &bg as *const u32 as *const c_void, size);
         DwmSetWindowAttribute(hwnd, DWMWA_TEXT_COLOR, &text as *const u32 as *const c_void, size);
       }
+    }
+  }
+}
+
+/// Codera's fullscreen: on or off. The page's Ctrl+Cmd+F and the exit button call this.
+#[tauri::command]
+fn codera_fullscreen(window: tauri::Window) {
+  #[cfg(target_os = "macos")]
+  {
+    let _ = window;
+    mac::toggle();
+  }
+  #[cfg(not(target_os = "macos"))]
+  {
+    let on = window.is_fullscreen().unwrap_or(false);
+    let _ = window.set_fullscreen(!on);
+  }
+}
+
+/// Shows or hides the traffic lights while in fullscreen; the page asks when the
+/// pointer is over Codera's bar.
+#[tauri::command]
+fn codera_lights(show: bool) {
+  #[cfg(target_os = "macos")]
+  mac::lights(show);
+  #[cfg(not(target_os = "macos"))]
+  let _ = show;
+}
+
+/// Fullscreen on macOS, done Codera's way.
+///
+/// The Mac's own fullscreen moves the window to a new Space and, when the pointer
+/// reaches the top, slides Apple's grey title strip down over the app. Codera keeps
+/// its own bar as the header instead: the green button is pointed at this module,
+/// which hides the Dock and menu bar and fills the screen with the window, leaving
+/// the real traffic lights in Codera's bar, hidden until the pointer is over it.
+#[cfg(target_os = "macos")]
+mod mac {
+  use std::sync::atomic::{AtomicBool, Ordering};
+  use std::sync::{Mutex, OnceLock};
+
+  use objc2::rc::Retained;
+  use objc2::runtime::{AnyObject, NSObject};
+  use objc2::{define_class, msg_send, sel, MainThreadMarker, MainThreadOnly};
+  use objc2_app_kit::{
+    NSApplication, NSApplicationPresentationOptions, NSWindow, NSWindowButton, NSWindowCollectionBehavior,
+  };
+  use objc2_foundation::NSRect;
+  use tauri::{Emitter, Manager};
+
+  static APP: OnceLock<tauri::AppHandle> = OnceLock::new();
+  static ON: AtomicBool = AtomicBool::new(false);
+  static SAVED: Mutex<Option<(NSRect, NSApplicationPresentationOptions)>> = Mutex::new(None);
+
+  define_class!(
+    // The green button's new target. It only forwards the press.
+    #[unsafe(super(NSObject))]
+    #[thread_kind = MainThreadOnly]
+    #[name = "CoderaZoomTarget"]
+    struct ZoomTarget;
+
+    impl ZoomTarget {
+      #[unsafe(method(coderaZoom:))]
+      fn codera_zoom(&self, _sender: Option<&AnyObject>) {
+        toggle();
+      }
+    }
+  );
+
+  impl ZoomTarget {
+    fn new(mtm: MainThreadMarker) -> Retained<Self> {
+      let this = Self::alloc(mtm).set_ivars(());
+      unsafe { msg_send![super(this), init] }
+    }
+  }
+
+  fn main_window() -> Option<Retained<NSWindow>> {
+    let window = APP.get()?.get_webview_window("main")?;
+    let ptr = window.ns_window().ok()? as *mut NSWindow;
+    unsafe { Retained::retain(ptr) }
+  }
+
+  pub fn setup(app: &tauri::AppHandle) {
+    let _ = APP.set(app.clone());
+    let Some(mtm) = MainThreadMarker::new() else { return };
+    let Some(ns) = main_window() else { return };
+
+    // No separate Space: the menu item and the green button no longer start Apple's fullscreen.
+    let mut behavior = ns.collectionBehavior();
+    behavior &= !NSWindowCollectionBehavior::FullScreenPrimary;
+    behavior |= NSWindowCollectionBehavior::FullScreenNone;
+    ns.setCollectionBehavior(behavior);
+
+    if let Some(zoom) = ns.standardWindowButton(NSWindowButton::ZoomButton) {
+      // A control does not keep its target alive, so the target lives for the whole run.
+      let target = Retained::into_raw(ZoomTarget::new(mtm));
+      unsafe {
+        zoom.setTarget(Some(&*(target as *const AnyObject)));
+        zoom.setAction(Some(sel!(coderaZoom:)));
+      }
+    }
+  }
+
+  fn set_lights_hidden(ns: &NSWindow, hidden: bool) {
+    for kind in [NSWindowButton::CloseButton, NSWindowButton::MiniaturizeButton, NSWindowButton::ZoomButton] {
+      if let Some(button) = ns.standardWindowButton(kind) {
+        button.setHidden(hidden);
+      }
+    }
+  }
+
+  pub fn lights(show: bool) {
+    if !ON.load(Ordering::SeqCst) {
+      return;
+    }
+    if let Some(ns) = main_window() {
+      set_lights_hidden(&ns, !show);
+    }
+  }
+
+  pub fn toggle() {
+    let Some(mtm) = MainThreadMarker::new() else { return };
+    let Some(ns) = main_window() else { return };
+    let app = NSApplication::sharedApplication(mtm);
+
+    if !ON.load(Ordering::SeqCst) {
+      let Some(screen) = ns.screen() else { return };
+      *SAVED.lock().unwrap() = Some((ns.frame(), app.presentationOptions()));
+      // The menu bar has to be gone before a titled window may cover its strip.
+      app.setPresentationOptions(
+        NSApplicationPresentationOptions::HideDock | NSApplicationPresentationOptions::HideMenuBar,
+      );
+      ns.setFrame_display(screen.frame(), true);
+      ns.setMovable(false);
+      set_lights_hidden(&ns, true);
+      ON.store(true, Ordering::SeqCst);
+    } else {
+      let saved = SAVED.lock().unwrap().take();
+      if let Some((frame, options)) = saved {
+        app.setPresentationOptions(options);
+        ns.setFrame_display(frame, true);
+      }
+      ns.setMovable(true);
+      set_lights_hidden(&ns, false);
+      ON.store(false, Ordering::SeqCst);
+    }
+
+    if let Some(app) = APP.get() {
+      let _ = app.emit("codera://fullscreen", ON.load(Ordering::SeqCst));
     }
   }
 }
