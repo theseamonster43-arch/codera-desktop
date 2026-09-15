@@ -7,7 +7,8 @@
   import { go, route } from '../lib/router.svelte';
   import { signOut } from 'firebase/auth';
   import { auth } from '../lib/firebase';
-  import { frame, toggleFullscreen, showLights } from '../lib/frame.svelte';
+  import MacLights from './MacLights.svelte';
+  import { frame, toggleFullscreen } from '../lib/frame.svelte';
 
   let { onToggleSidebar }: { onToggleSidebar: () => void } = $props();
 
@@ -18,8 +19,8 @@
   // On a Mac the system's own red, yellow and green buttons sit over the left end of
   // this bar; on Windows the minimise, maximise and close buttons sit over the right end.
   // The bar leaves room for whichever it has.
-  // In fullscreen on a Mac the lights hide, the bar closes the gap they leave, and
-  // pointing at the bar brings them back.
+  // In fullscreen on a Mac the bar closes the gap the traffic lights leave, and
+  // pointing at the bar shows them again.
   const mac = inTauri && navigator.userAgent.includes('Mac');
   const win = inTauri && !mac;
   let peek = $state(false);
@@ -27,7 +28,6 @@
   function point(over: boolean) {
     if (!mac || !frame.fullscreen) return;
     peek = over;
-    showLights(over);
   }
   $effect(() => { if (!frame.fullscreen) peek = false; });
 
@@ -66,6 +66,7 @@
   onmouseenter={() => point(true)} onmouseleave={() => point(false)}
 >
   <div class="left" data-tauri-drag-region>
+    {#if mac && frame.fullscreen && peek}<MacLights />{/if}
     <button class="icon-btn" onclick={onToggleSidebar} aria-label="Menu" title="Menu">
       <svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
     </button>
@@ -151,6 +152,7 @@
 
   .bar.mac { padding-left: 84px; transition: padding-left .18s cubic-bezier(.2, .9, .3, 1); }
   .bar.mac.fs { padding-left: 12px; }
-  .bar.mac.fs.peek { padding-left: 84px; }
+  .bar.mac.fs.peek { padding-left: 18px; }
+  .bar.mac.fs.peek .left { gap: 14px; }
   .bar.win { padding-right: 138px; }
 </style>

@@ -2,7 +2,7 @@ import { inTauri } from './native';
 
 /**
  * The window frame as the page needs to know it: whether this is a Mac, and
- * whether Codera's own fullscreen is on (the shell reports every change).
+ * whether the window is fullscreen (the shell reports every change on a Mac).
  */
 export const mac = inTauri && navigator.userAgent.includes('Mac');
 export const frame = $state({ fullscreen: false });
@@ -13,13 +13,9 @@ if (mac) {
   );
 }
 
-async function call(cmd: string, args?: Record<string, unknown>) {
+/** Into or out of the Mac's real fullscreen. */
+export async function toggleFullscreen() {
   if (!inTauri) return;
   const { invoke } = await import('@tauri-apps/api/core');
-  await invoke(cmd, args);
+  await invoke('codera_fullscreen');
 }
-
-export const toggleFullscreen = () => call('codera_fullscreen');
-
-/** While in fullscreen, the traffic lights show only with the pointer over the bar. */
-export const showLights = (show: boolean) => call('codera_lights', { show });

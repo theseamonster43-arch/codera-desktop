@@ -1,6 +1,6 @@
 [package]
 name = "codera"
-version = "0.1.1"
+version = "0.1.2"
 description = "Codera for the desktop"
 authors = ["Codera"]
 license = ""
@@ -24,18 +24,7 @@ tauri-plugin-log = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
 
-# Codera's own fullscreen on macOS talks to AppKit directly.
+# Fullscreen on macOS adjusts AppKit's presentation options directly.
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSGeometry"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = [
-  "std",
-  "objc2-core-foundation",
-  "NSApplication",
-  "NSButton",
-  "NSControl",
-  "NSResponder",
-  "NSScreen",
-  "NSView",
-  "NSWindow",
-] }
+objc2 = { version = "0.6", features = ["exception"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "bitflags", "NSApplication"] }
