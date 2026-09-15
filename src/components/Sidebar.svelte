@@ -2,6 +2,11 @@
   import Icon from './Icon.svelte';
   import { route } from '../lib/router.svelte';
   import { session } from '../lib/state.svelte';
+  import { inTauri } from '../lib/native';
+
+  // The installed version, so it is easy to tell which build is running.
+  let version = $state('');
+  if (inTauri) import('@tauri-apps/api/app').then(a => a.getVersion()).then(v => (version = v)).catch(() => {});
 
   let { narrow = false }: { narrow?: boolean } = $props();
 
@@ -40,7 +45,7 @@
 
     <div class="grow"></div>
     <div class="foot muted">
-      Codera for desktop<br />Shortcuts: <kbd>Ctrl K</kbd> search · <kbd>Space</kbd> play
+      Codera for desktop{#if version} {version}{/if}<br />Shortcuts: <kbd>Ctrl K</kbd> search · <kbd>Space</kbd> play
     </div>
   {/if}
 </nav>
