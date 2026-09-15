@@ -127,21 +127,37 @@ fn codera_fullscreen(window: tauri::Window) {
 
 /// macOS fullscreen with Codera's bar as the header.
 ///
-/// The window uses the Mac's real fullscreen (its own Space). Normally, pointing at
-/// the top of the screen then slides the menu bar and Apple's grey title strip down
-/// over the app. Once the window is fullscreen this keeps the menu bar and Dock
-/// hidden instead, so nothing covers Codera's bar, and tells the page, which then
-/// closes the gap left by the traffic lights and offers its own on hover.
+/// The window uses the Mac's real fullscreen. When the pointer reaches the top of
+/// the screen the menu bar still slides down as usual, but Apple's title strip that
+/// normally comes with it is hidden and lets clicks through. Instead the page is
+/// told, many times a second while fullscreen, how far the menu bar has pushed into
+/// the window and whether the strip is out, so Codera's own bar moves down with the
+/// menu bar and shows the traffic lights.
 #[cfg(target_os = "macos")]
 mod mac {
-  use std::panic::AssertUnwindSafe;
   use std::sync::atomic::{AtomicBool, Ordering};
+  use std::sync::Mutex;
+  use std::time::Duration;
 
-  use objc2::MainThreadMarker;
-  use objc2_app_kit::{NSApplication, NSApplicationPresentationOptions};
+  use objc2::rc::Retained;
+  use objc2_app_kit::{NSView, NSWindow, NSWindowButton};
   use tauri::Emitter;
 
   static FULL: AtomicBool = AtomicBool::new(false);
+  static LAST: Mutex<Option<(i32, bool)>> = Mutex::new(None);
+
+  fn ns_window(window: &tauri::Window) -> Option<Retained<NSWindow>> {
+    let ptr = window.ns_window().ok()? as *mut NSWindow;
+    unsafe { Retained::retain(ptr) }
+  }
+
+  /// The view that holds Apple's title strip, traffic lights included.
+  fn title_strip(ns: &NSWindow) -> Option<Retained<NSView>> {
+    let close = ns.standardWindowButton(NSWindowButton::CloseButton)?;
+    // The button sits in a row view, inside the strip itself.
+    let row = unsafe { close.superview() }?;
+    unsafe { row.superview() }
+  }
 
   pub fn on_resized(window: &tauri::Window) {
     if window.label() != "main" {
@@ -151,30 +167,61 @@ mod mac {
     if FULL.swap(now, Ordering::SeqCst) == now {
       return;
     }
-    if now {
-      keep_bars_hidden();
+    if let Some(strip) = ns_window(window).as_deref().and_then(title_strip) {
+      strip.setHidden(now);
     }
+    *LAST.lock().unwrap() = None;
     let _ = window.emit("codera://fullscreen", now);
+
+    if now {
+      let window = window.clone();
+      std::thread::spawn(move || {
+        while FULL.load(Ordering::SeqCst) {
+          std::thread::sleep(Duration::from_millis(25));
+          let w = window.clone();
+          let _ = window.run_on_main_thread(move || tick(&w));
+        }
+      });
+    } else {
+      let _ = window.emit("codera://reveal", serde_json::json!({ "push": 0, "lights": false }));
+    }
   }
 
-  fn keep_bars_hidden() {
-    let Some(mtm) = MainThreadMarker::new() else { return };
-    let app = NSApplication::sharedApplication(mtm);
-    let current = app.presentationOptions();
-    if !current.contains(NSApplicationPresentationOptions::FullScreen) {
+  fn tick(window: &tauri::Window) {
+    if !FULL.load(Ordering::SeqCst) {
       return;
     }
-    let mut options = current;
-    // The toolbar auto-hide is only allowed alongside an auto-hiding menu bar.
-    options.remove(
-      NSApplicationPresentationOptions::AutoHideMenuBar
-        | NSApplicationPresentationOptions::AutoHideDock
-        | NSApplicationPresentationOptions::AutoHideToolbar,
-    );
-    options.insert(NSApplicationPresentationOptions::HideDock | NSApplicationPresentationOptions::HideMenuBar);
-    // AppKit throws on a combination it refuses; if it does, fullscreen simply keeps
-    // Apple's usual behaviour rather than taking the app down.
-    let _ = objc2::exception::catch(AssertUnwindSafe(|| app.setPresentationOptions(options)));
+    let Some(ns) = ns_window(window) else { return };
+    let Some(strip) = title_strip(&ns) else { return };
+    if !strip.isHidden() {
+      strip.setHidden(true);
+    }
+    let Some(holder) = strip.window() else { return };
+
+    let (push, lights) = if Retained::as_ptr(&holder) == Retained::as_ptr(&ns) {
+      // The strip has not moved into its own fullscreen window yet.
+      (0, false)
+    } else {
+      // In fullscreen AppKit keeps the strip in a separate window it slides down under
+      // the menu bar. That window must not swallow clicks meant for Codera's bar.
+      holder.setIgnoresMouseEvents(true);
+      let win = ns.frame();
+      let strip_frame = holder.frame();
+      let win_top = win.origin.y + win.size.height;
+      let strip_top = strip_frame.origin.y + strip_frame.size.height;
+      // How far below the window's top edge the strip starts: the room the menu bar
+      // takes inside the window (none on a Mac whose menu bar sits beside the notch).
+      let push = (win_top - strip_top).round().clamp(0.0, 64.0) as i32;
+      // Out, when any of it is inside the window.
+      let lights = strip_frame.origin.y < win_top - 1.0;
+      (push, lights)
+    };
+
+    let mut last = LAST.lock().unwrap();
+    if *last != Some((push, lights)) {
+      *last = Some((push, lights));
+      let _ = window.emit("codera://reveal", serde_json::json!({ "push": push, "lights": lights }));
+    }
   }
 }
 

@@ -19,17 +19,11 @@
   // On a Mac the system's own red, yellow and green buttons sit over the left end of
   // this bar; on Windows the minimise, maximise and close buttons sit over the right end.
   // The bar leaves room for whichever it has.
-  // In fullscreen on a Mac the bar closes the gap the traffic lights leave, and
-  // pointing at the bar shows them again.
+  // In fullscreen on a Mac the bar closes the gap the traffic lights leave, and shows
+  // them again while the menu bar is down.
   const mac = inTauri && navigator.userAgent.includes('Mac');
   const win = inTauri && !mac;
-  let peek = $state(false);
-
-  function point(over: boolean) {
-    if (!mac || !frame.fullscreen) return;
-    peek = over;
-  }
-  $effect(() => { if (!frame.fullscreen) peek = false; });
+  const peek = $derived(mac && frame.fullscreen && frame.lights);
 
   // Ctrl+K from anywhere puts you in the search box, as in most desktop apps.
   function keys(e: KeyboardEvent) {
@@ -63,10 +57,9 @@
 <header
   class="bar" class:mac class:win class:fs={mac && frame.fullscreen} class:peek data-tauri-drag-region
   ondblclick={e => win && e.target === e.currentTarget && toggleMaximize()}
-  onmouseenter={() => point(true)} onmouseleave={() => point(false)}
 >
   <div class="left" data-tauri-drag-region>
-    {#if mac && frame.fullscreen && peek}<MacLights />{/if}
+    {#if peek}<MacLights />{/if}
     <button class="icon-btn" onclick={onToggleSidebar} aria-label="Menu" title="Menu">
       <svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
     </button>

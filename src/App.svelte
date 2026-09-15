@@ -16,6 +16,7 @@
   import { session, startSession } from './lib/state.svelte';
   import { route, back } from './lib/router.svelte';
   import { inTauri } from './lib/native';
+  import { frame } from './lib/frame.svelte';
 
   startSession();
 
@@ -57,7 +58,8 @@
 {:else if needsName}
   <PickName />
 {:else}
-  <div class="shell" class:narrow>
+  <!-- In fullscreen on a Mac the whole app moves down with the menu bar as it slides in. -->
+  <div class="shell" class:narrow style:padding-top={frame.push ? frame.push + 'px' : null}>
     <TitleBar onToggleSidebar={toggle} />
     <Sidebar {narrow} />
     <main bind:this={main}>
@@ -81,7 +83,7 @@
 
 <style>
   .shell {
-    height: 100%; display: grid;
+    height: 100%; box-sizing: border-box; display: grid;
     grid-template: var(--titlebar) 1fr / var(--sidebar) 1fr;
     grid-template-areas: 'bar bar' 'side main';
   }
