@@ -29,6 +29,8 @@
   const countries = PAYOUT_COUNTRIES
     .map(c => ({ code: c, name: names?.of(c) || c }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  const waiting = $derived(st?.held ? `$${(st.held / 100).toFixed(2)}` : '');
+
   const mine = ((navigator.language || '').split('-')[1] || '').toUpperCase();
   let country = $state(PAYOUT_COUNTRIES.includes(mine) ? mine : 'US');
 
@@ -50,11 +52,12 @@
     <span class="muted">
       {#if err}{err}
       {:else if !st}Checking…
-      {:else if st.ready}Viewers can tip you while you’re live. Codera keeps 3%; the rest is paid out to you by Stripe{st.payoutsEnabled ? '' : ' once your bank details are confirmed'}.
-      {:else if st.hasAccount && !restarting}Almost there: Stripe needs a few more details before viewers can tip you.
+      {:else if st.ready}Viewers can tip you while you’re live. Codera keeps 3%; the rest is paid out to you by Stripe{st.payoutsEnabled ? '' : ' once your bank details are confirmed'}.{waiting ? ` ${waiting} in earlier tips is on its way to you.` : ''}
+      {:else if st.hasAccount && !restarting}{waiting ? `You have ${waiting} in tips waiting. ` : ''}Almost there: Stripe needs a few more details before your tips can be paid to you.
         <button class="link" onclick={() => (restarting = true)}>Wrong country? Start again</button>
       {:else if restarting}Pick your country and Stripe will start a fresh setup.
-      {:else}Let viewers tip you while you’re live. You get the tips, minus Codera’s 3% and Stripe’s card fee, paid to your bank.
+      {:else if waiting}You have {waiting} in tips waiting. Set up payouts and it’s sent to your bank, along with every tip after it.
+      {:else}Viewers can tip you while you’re live. Set up payouts to get the tips, minus Codera’s 3% and Stripe’s card fee, in your bank. Tips given before then are kept for you.
       {/if}
     </span>
   </div>

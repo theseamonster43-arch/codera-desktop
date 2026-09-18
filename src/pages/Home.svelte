@@ -5,7 +5,7 @@
   import { session, face, type Kind, type Post } from '../lib/state.svelte';
   import { route } from '../lib/router.svelte';
   import { social, onAir, nudgeText, WEIGHT } from '../lib/social.svelte';
-  import { rank, favourites, TOPIC_LABEL } from '../lib/taste.js';
+  import { rank } from '../lib/taste.js';
 
   let filter = $state<'all' | Kind>('all');
 
@@ -27,8 +27,6 @@
   const shorts = $derived(query || filter !== 'all' ? [] : (rank(session.posts.filter(p => p.type === 'short'), social.taste, social.following) as Post[]).slice(0, 12));
   const liveNow = $derived(query ? social.streams.filter(s => onAir(s) && [s.title, s.authorName].some(v => v && v.toLowerCase().includes(query)))
     : filter === 'all' ? social.streams.filter(onAir).sort((a, b) => (+social.following.has(b.uid) - +social.following.has(a.uid)) || (b.watching || 0) - (a.watching || 0)) : []);
-  const favs = $derived(favourites(social.taste).map((t: string) => (TOPIC_LABEL as Record<string, string>)[t] || t));
-  const because = $derived(favs.length ? 'Because you watch ' + (favs.length > 1 ? favs.slice(0, -1).join(', ') + ' and ' + favs[favs.length - 1] : favs[0]) : '');
   const main = $derived(query || filter !== 'all' ? shown : shown.filter(p => p.type !== 'short'));
 
   const FILTERS: { id: 'all' | Kind; label: string }[] = [
@@ -65,7 +63,7 @@
     {/if}
 
     {#if main.length}
-      {#if !query}<h2>{filter === 'all' ? 'Recommended' : FILTERS.find(f => f.id === filter)?.label}{#if because}<span class="because">{because}</span>{/if}</h2>{/if}
+      {#if !query && filter !== 'all'}<h2>{FILTERS.find(f => f.id === filter)?.label}</h2>{/if}
       <div class="grid stagger">
         {#each main as post, i (post.id)}<PostCard {post} index={i} />{/each}
       </div>

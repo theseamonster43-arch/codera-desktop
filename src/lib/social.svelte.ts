@@ -255,22 +255,21 @@ export function watchStreamDoc(id: string, onChange: (s: Stream | null) => void)
 export const TIP_AMOUNTS = [200, 500, 1000, 2000, 5000];
 
 // A tip is charged on the streamer's own Stripe account, so the card form and
-// the confirmation both name that account.
+// the confirmation both name that account. A streamer who hasn't set up
+// payouts yet has no account (null): the tip goes to Codera, held for them.
 export const tipIntent = async (streamId: string, amount: number, message: string) =>
   (await httpsCallable(functions, 'tipIntent')({ streamId, amount, message })).data as {
-    clientSecret: string; intentId: string; account: string; livemode: boolean;
+    clientSecret: string; intentId: string; account: string | null; livemode: boolean;
   };
 
-export const tipConfirm = (intentId: string, account: string) =>
+export const tipConfirm = (intentId: string, account: string | null) =>
   httpsCallable(functions, 'tipConfirm')({ intentId, account });
 
-/** Whether a streamer can be tipped: only the server writes this, once Stripe says so. */
-export async function tippable(uid: string) {
-  const snap = await getDoc(doc(db, 'payouts', uid)).catch(() => null);
-  return !!(snap && snap.exists() && snap.get('ready'));
+export interface Payouts {
+  hasAccount: boolean; ready: boolean; payoutsEnabled: boolean; needsInfo?: boolean;
+  /** Cents in tips waiting to be sent to the streamer. */
+  held?: number;
 }
-
-export interface Payouts { hasAccount: boolean; ready: boolean; payoutsEnabled: boolean; needsInfo?: boolean }
 
 // Where a streamer's payout setup stands. Stripe is asked at most once a minute.
 let payoutsSeen: { at: number; status: Payouts } | null = null;
