@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "What Codera's windows may ask of the shell.",
-  "windows": ["main", "mini"],
+  "windows": ["main", "mini", "chat"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",

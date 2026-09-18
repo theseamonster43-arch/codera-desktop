@@ -8,7 +8,8 @@ import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { auth, db, functions, storage } from './firebase';
 import { faces, learnFaces, session, type Post } from './state.svelte';
 import { learn, topicsOf, topicsOfText, WEIGHT } from './taste.js';
-import { hostStream, recorder } from './live.js';
+import { inTauri } from './native';
+import { hostStream, recorder, mixer, capture } from './live.js';
 
 /**
  * Following, live streams and recommendations: the same collections and rules
@@ -253,20 +254,62 @@ export function watchStreamDoc(id: string, onChange: (s: Stream | null) => void)
 
 export const TIP_AMOUNTS = [200, 500, 1000, 2000, 5000];
 
+// A tip is charged on the streamer's own Stripe account, so the card form and
+// the confirmation both name that account.
 export const tipIntent = async (streamId: string, amount: number, message: string) =>
   (await httpsCallable(functions, 'tipIntent')({ streamId, amount, message })).data as {
-    clientSecret: string; intentId: string; livemode: boolean;
+    clientSecret: string; intentId: string; account: string; livemode: boolean;
   };
 
-export const tipConfirm = (intentId: string) => httpsCallable(functions, 'tipConfirm')({ intentId });
+export const tipConfirm = (intentId: string, account: string) =>
+  httpsCallable(functions, 'tipConfirm')({ intentId, account });
+
+/** Whether a streamer can be tipped: only the server writes this, once Stripe says so. */
+export async function tippable(uid: string) {
+  const snap = await getDoc(doc(db, 'payouts', uid)).catch(() => null);
+  return !!(snap && snap.exists() && snap.get('ready'));
+}
+
+export interface Payouts { hasAccount: boolean; ready: boolean; payoutsEnabled: boolean; needsInfo?: boolean }
+
+// Where a streamer's payout setup stands. Stripe is asked at most once a minute.
+let payoutsSeen: { at: number; status: Payouts } | null = null;
+export async function payoutsStatus(): Promise<Payouts> {
+  if (payoutsSeen && Date.now() - payoutsSeen.at < 60000) return payoutsSeen.status;
+  const status = (await httpsCallable(functions, 'payoutsStatus')()).data as Payouts;
+  payoutsSeen = { at: Date.now(), status };
+  return status;
+}
+
+/** Stripe's own page for setting up (or starting again with) where tips are paid. */
+export async function payoutsLink(country?: string, restart = false) {
+  payoutsSeen = null;
+  const res = await httpsCallable(functions, 'payoutsLink')({
+    back: 'https://codera-46b86.web.app/#/you', country, restart,
+  });
+  return (res.data as { url: string }).url;
+}
+
+export const payoutsDashboard = async () =>
+  ((await httpsCallable(functions, 'payoutsDashboard')()).data as { url: string }).url;
+
+// Where Stripe can pay streamers out. It needs the country first, and for good.
+export const PAYOUT_COUNTRIES = 'AE AT AU BE BG BR CA CH CY CZ DE DK EE ES FI FR GB GI GR HK HR HU IE IN IT JP LI LT LU LV MT MX MY NL NO NZ PL PT RO SE SG SI SK TH US'.split(' ');
 
 // ---- going live ---------------------------------------------------------------------
+
+export type Source = 'camera' | 'screen';
+export interface Picks { cam: string; mic: string }
+interface Mix { stream: MediaStream; use(m: MediaStream): void; current(): MediaStream; stop(): void }
 
 export interface Studio {
   id: string;
   uid: string;
   title: string;
-  media: MediaStream;
+  /** What viewers and the recording receive; the camera or screen behind it can change. */
+  mix: Mix;
+  source: Source;
+  picks: Picks;
   startedAt: number;
   watching: number;
   host: { stop(): void };
@@ -276,11 +319,11 @@ export interface Studio {
 }
 
 /** The stream this app is sending, if any. It outlives page changes. */
-export const studio = $state({ now: null as Studio | null, tick: 0 });
+export const studio = $state({ now: null as Studio | null, tick: 0, chatOpen: false });
 
 let ticker: ReturnType<typeof setInterval> | undefined;
 
-export async function goLive(title: string, media: MediaStream) {
+export async function goLive(title: string, media: MediaStream, source: Source, picks: Picks) {
   const who = author();
   const made = await addDoc(collection(db, 'streams'), {
     ...who,
@@ -288,24 +331,55 @@ export async function goLive(title: string, media: MediaStream) {
     live: true, watching: 0, likeCount: 0, dislikeCount: 0,
     startedAt: serverTimestamp(), beat: serverTimestamp(), endedAt: null,
   });
+  // Viewers and the recording take the mixer's steady output, so the camera,
+  // microphone or screen behind it can be switched at any point in the stream.
+  const mix = mixer(media) as Mix;
   const s: Studio = {
-    id: made.id, uid: who.uid, title: title.trim(), media, startedAt: Date.now(), watching: 0,
+    id: made.id, uid: who.uid, title: title.trim(), mix, source, picks: { ...picks },
+    startedAt: Date.now(), watching: 0,
     host: { stop() {} }, rec: null,
     beat: setInterval(() => updateDoc(doc(db, 'streams', made.id), { beat: serverTimestamp() }).catch(() => {}), 20000),
   };
-  s.host = hostStream(db, made.id, media, {
+  s.host = hostStream(db, made.id, mix.stream, {
     onWatching: (n: number) => {
       if (studio.now) studio.now.watching = n;
       updateDoc(doc(db, 'streams', made.id), { watching: n }).catch(() => {});
     },
   });
-  s.rec = recorder(media);
+  s.rec = recorder(mix.stream);
   studio.now = s;
   ticker = setInterval(() => { studio.tick++; }, 1000);
-  media.getVideoTracks()[0]?.addEventListener('ended', () => { if (studio.now?.id === s.id) endLive(); });
+  watchSourceEnd(s);
   window.addEventListener('beforeunload', unload);
   nudgeText(title, WEIGHT.stream);
   return s;
+}
+
+/**
+ * Puts something else on air without interrupting the stream: another camera
+ * (OBS's virtual camera, say), another microphone, or the screen.
+ */
+export async function switchSource(kind: Source, picks: Partial<Picks> = {}) {
+  const s = studio.now;
+  if (!s) return;
+  const next = { ...s.picks, ...picks };
+  const media: MediaStream = await capture(kind, next);
+  if (studio.now?.id !== s.id) { media.getTracks().forEach(t => t.stop()); return; }
+  s.picks = next;
+  s.source = kind;
+  s.mix.use(media);
+  watchSourceEnd(s);
+}
+
+// When a shared screen is stopped from the system's own "stop sharing" bar,
+// the stream carries on from the camera instead of ending.
+function watchSourceEnd(s: Studio) {
+  const track = s.mix.current().getVideoTracks()[0];
+  if (!track) return;
+  track.addEventListener('ended', () => {
+    if (studio.now?.id !== s.id || studio.now.mix.current().getVideoTracks()[0] !== track) return;
+    switchSource('camera').catch(() => {});
+  });
 }
 
 function unload() {
@@ -321,7 +395,8 @@ export async function endLive() {
   clearInterval(ticker);
   s.host.stop();
   const blob = s.rec ? await s.rec.stop() : null;
-  s.media.getTracks().forEach(t => t.stop());
+  s.mix.stop();
+  closeChatWindow();
   window.removeEventListener('beforeunload', unload);
   await updateDoc(doc(db, 'streams', s.id), { live: false, endedAt: serverTimestamp(), watching: 0 }).catch(() => {});
   studio.now = null;
@@ -347,4 +422,42 @@ export async function saveStream(id: string, title: string, blob: Blob, secs: nu
     likeCount: 0, dislikeCount: 0, commentCount: 0, createdAt: serverTimestamp(),
   });
   dropStream(id);
+}
+
+// ---- the pop-out chat ----------------------------------------------------------------
+
+/**
+ * The stream's chat in a window of its own, to keep beside OBS or a game
+ * while the main window shows something else.
+ */
+export async function popOutChat(streamId: string) {
+  const hash = `#/chat/${encodeURIComponent(streamId)}`;
+  if (!inTauri) {
+    window.open(location.origin + location.pathname + hash, 'codera-chat', 'popup,width=420,height=720');
+    return;
+  }
+  const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+  const existing = await WebviewWindow.getByLabel('chat');
+  if (existing) { await existing.setFocus(); return; }
+  const w = new WebviewWindow('chat', {
+    url: 'index.html' + hash,
+    title: 'Codera — stream chat',
+    width: 420,
+    height: 720,
+    minWidth: 320,
+    minHeight: 360,
+    decorations: navigator.userAgent.includes('Mac'),
+    shadow: true,
+    resizable: true,
+    useHttpsScheme: true,
+  });
+  studio.chatOpen = true;
+  w.once('tauri://destroyed', () => { studio.chatOpen = false; });
+}
+
+export async function closeChatWindow() {
+  if (!inTauri) return;
+  const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+  (await WebviewWindow.getByLabel('chat'))?.close();
+  studio.chatOpen = false;
 }

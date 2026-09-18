@@ -2,6 +2,7 @@
   import Avatar from '../components/Avatar.svelte';
   import Icon from '../components/Icon.svelte';
   import PostCard from '../components/PostCard.svelte';
+  import Payouts from '../components/Payouts.svelte';
   import { session, myName, myPhoto, type Kind } from '../lib/state.svelte';
   import { setProfileImage, setBio } from '../lib/actions';
   import { plural } from '../lib/format';
@@ -88,6 +89,8 @@
       </button>
     {/if}
   </div>
+
+  <Payouts />
 
   <div class="chips">
     <button class="chip" class:on={filter === 'all'} onclick={() => (filter = 'all')}>All <i>{mine.length}</i></button>

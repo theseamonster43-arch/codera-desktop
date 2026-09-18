@@ -200,9 +200,27 @@ export function recorder(media) {
 }
 
 /**
- * The camera, or the screen with the microphone laid over it.
+ * The cameras and microphones this machine has — OBS's virtual camera among
+ * them when OBS is running with it started. Names only appear once the page
+ * has been allowed to use a camera or microphone at least once.
  */
-export async function capture(source) {
+export async function devices() {
+  const all = navigator.mediaDevices && navigator.mediaDevices.enumerateDevices
+    ? await navigator.mediaDevices.enumerateDevices() : [];
+  const named = (kind, fallback) => all
+    .filter(d => d.kind === kind && d.deviceId)
+    .map((d, i) => ({ id: d.deviceId, label: d.label || `${fallback} ${i + 1}` }));
+  return { cams: named('videoinput', 'Camera'), mics: named('audioinput', 'Microphone') };
+}
+
+/**
+ * Something to stream: a camera, or the screen with the microphone laid over it.
+ *
+ * @param source 'camera' | 'screen'
+ * @param opts   { cam, mic }: device ids from devices(); the defaults when absent
+ */
+export async function capture(source, opts = {}) {
+  const mic = opts.mic ? { deviceId: { exact: opts.mic } } : true;
   if (source === 'screen') {
     const screen = await navigator.mediaDevices.getDisplayMedia({
       video: { frameRate: 30 }, audio: true,
@@ -210,25 +228,98 @@ export async function capture(source) {
     // The microphone too, so people can talk over what they are showing. If it
     // is refused, the screen goes out on its own.
     try {
-      const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const has = screen.getAudioTracks().length;
-      if (!has) mic.getAudioTracks().forEach(t => screen.addTrack(t));
-      else {
-        // Both system sound and voice: mix them into one track.
-        const ctx = new AudioContext();
-        const out = ctx.createMediaStreamDestination();
-        ctx.createMediaStreamSource(new MediaStream(screen.getAudioTracks())).connect(out);
-        ctx.createMediaStreamSource(mic).connect(out);
-        screen.getAudioTracks().forEach(t => screen.removeTrack(t));
-        screen.addTrack(out.stream.getAudioTracks()[0]);
-      }
+      const voice = await navigator.mediaDevices.getUserMedia({ audio: mic });
+      voice.getAudioTracks().forEach(t => screen.addTrack(t));
     } catch (e) { /* no microphone: screen only */ }
     return screen;
   }
   return navigator.mediaDevices.getUserMedia({
-    video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
-    audio: true,
+    video: Object.assign(
+      { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+      opts.cam ? { deviceId: { exact: opts.cam } } : {},
+    ),
+    audio: mic,
   });
+}
+
+/**
+ * One steady picture and one steady sound, whatever feeds them.
+ *
+ * Viewers' connections and the recording both take this mixer's output rather
+ * than the camera itself, so the streamer can switch camera, microphone or
+ * screen mid-stream: the mixer starts drawing from the new source and nobody's
+ * connection or the recording notices a thing. (A recording stops outright if
+ * the tracks it records change, and a switch would otherwise mean every viewer
+ * reconnecting.)
+ *
+ * The picture is redrawn onto a canvas 30 times a second, timed from a worker
+ * so it keeps going while the tab is in the background, and the sound goes
+ * through Web Audio, where every audio track of a source is mixed together —
+ * a screen's own sound and the microphone, say.
+ */
+export function mixer(first) {
+  const settings = (first.getVideoTracks()[0] && first.getVideoTracks()[0].getSettings()) || {};
+  const upright = settings.width && settings.height && settings.height > settings.width;
+  const canvas = document.createElement('canvas');
+  canvas.width = upright ? 720 : 1280;
+  canvas.height = upright ? 1280 : 720;
+  const g = canvas.getContext('2d');
+
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+
+  const audio = new AudioContext();
+  const out = audio.createMediaStreamDestination();
+  let voices = [];
+  let source = null;
+
+  // Fits the source into the frame without stretching it, on black.
+  function draw() {
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, canvas.width, canvas.height);
+    if (video.readyState < 2 || !video.videoWidth) return;
+    const s = Math.min(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
+    const w = video.videoWidth * s, h = video.videoHeight * s;
+    g.drawImage(video, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+  }
+  const ticker = new Worker(URL.createObjectURL(new Blob(
+    ['setInterval(() => postMessage(0), 1000 / 30);'], { type: 'text/javascript' })));
+  ticker.onmessage = draw;
+
+  function use(stream) {
+    const was = source;
+    source = stream;
+    video.srcObject = new MediaStream(stream.getVideoTracks());
+    video.play().catch(() => {});
+    voices.forEach(v => { try { v.disconnect(); } catch (e) {} });
+    voices = stream.getAudioTracks().map(t => {
+      const node = audio.createMediaStreamSource(new MediaStream([t]));
+      node.connect(out);
+      return node;
+    });
+    if (audio.state === 'suspended') audio.resume().catch(() => {});
+    if (was && was !== stream) was.getTracks().forEach(t => t.stop());
+  }
+
+  use(first);
+  draw();
+  const stream = new MediaStream([
+    ...canvas.captureStream(30).getVideoTracks(),
+    ...out.stream.getAudioTracks(),
+  ]);
+
+  return {
+    stream,
+    use,
+    current: () => source,
+    stop() {
+      ticker.terminate();
+      if (source) source.getTracks().forEach(t => t.stop());
+      stream.getTracks().forEach(t => t.stop());
+      audio.close().catch(() => {});
+    },
+  };
 }
 
 /** Whether this browser can stream at all. */

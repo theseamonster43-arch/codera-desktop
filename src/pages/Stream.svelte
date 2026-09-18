@@ -7,7 +7,7 @@
   import { face, session } from '../lib/state.svelte';
   import {
     studio, onAir, watchStreamDoc, voteStream, watchStreamVote, userHref, nudgePost, WEIGHT,
-    tipIntent, tipConfirm, TIP_AMOUNTS, type Stream,
+    tipIntent, tipConfirm, tippable, TIP_AMOUNTS, type Stream,
   } from '../lib/social.svelte';
   import { watchStream } from '../lib/live.js';
   import { STRIPE_PK, db } from '../lib/firebase';
@@ -91,6 +91,23 @@
   let stripe: Stripe | null = null;
   let elements: StripeElements | null = $state(null);
   let intentId = '';
+  let account = '';
+
+  // Whether this streamer has set up payouts; null until known. Without them
+  // the Tip button explains that rather than opening the payment form.
+  let canTip = $state<boolean | null>(null);
+  $effect(() => {
+    const uid = s?.uid;
+    if (!uid || uid === session.user?.uid) return;
+    let alive = true;
+    tippable(uid).then(v => { if (alive) canTip = v; });
+    return () => { alive = false; };
+  });
+
+  function tipPressed() {
+    if (canTip === false) say(`${who.name || 'This streamer'} hasn’t turned on tips yet.`);
+    else openTip();
+  }
 
   function openTip() {
     tipping = true; amount = 500; note = ''; tipErr = ''; elements = null; intentId = '';
@@ -104,7 +121,9 @@
       if (!elements) {
         const d = await tipIntent(id, amount, note);
         intentId = d.intentId;
-        stripe = await loadStripe(d.livemode ? STRIPE_PK.live : STRIPE_PK.test);
+        account = d.account;
+        // The payment is made on the streamer's own Stripe account.
+        stripe = await loadStripe(d.livemode ? STRIPE_PK.live : STRIPE_PK.test, { stripeAccount: d.account });
         if (!stripe) throw new Error('Stripe didn’t load.');
         const dark = matchMedia('(prefers-color-scheme: dark)').matches;
         elements = stripe.elements({
@@ -116,7 +135,7 @@
       } else {
         const out = await stripe!.confirmPayment({ elements, redirect: 'if_required', confirmParams: { return_url: location.href } });
         if (out.error) throw new Error(out.error.message || 'That payment didn’t go through.');
-        await tipConfirm(intentId);
+        await tipConfirm(intentId, account);
         tipping = false;
         say('Tip sent. Thank you!');
       }
@@ -167,7 +186,8 @@
           <FollowButton uid={s.uid} />
           <button class="btn" class:on={mine === 1} onclick={() => vote(1)}><Icon name="up" size={18} />{compact(Math.max(0, tally.like))}</button>
           <button class="btn" class:down={mine === -1} onclick={() => vote(-1)}><Icon name="down" size={18} />{compact(Math.max(0, tally.dislike))}</button>
-          {#if s.uid !== session.user?.uid}<button class="btn tip" onclick={openTip}><Icon name="tip" size={18} />Tip</button>{/if}
+          {#if s.uid !== session.user?.uid}<button class="btn tip" class:off={canTip === false} onclick={tipPressed}
+            title={canTip === false ? 'This streamer hasn’t turned on tips yet' : 'Tip ' + who.name}><Icon name="tip" size={18} />Tip</button>{/if}
         </div>
       </div>
     </div>
@@ -178,7 +198,7 @@
     <div class="scrim" role="presentation" onclick={e => e.target === e.currentTarget && !tipBusy && (tipping = false)}>
       <div class="sheet">
         <h2><Icon name="tip" size={22} /> Tip {who.name}</h2>
-        <p class="muted">Your tip shows up highlighted in the chat for everyone watching.</p>
+        <p class="muted">Your tip shows up highlighted in the chat for everyone watching. It goes to {who.name}; Codera keeps 3%.</p>
         <div class="amounts">
           {#each TIP_AMOUNTS as a}
             <button class="chip" class:on={amount === a} disabled={!!elements} onclick={() => (amount = a)}>${a / 100}</button>
@@ -199,6 +219,7 @@
 {/if}
 
 <style>
+  .tip.off { opacity: .55; }
   .center { height: 70%; display: grid; place-content: center; justify-items: center; gap: 10px; text-align: center; padding: 40px; }
   .gone b { font-size: 18px; }
   .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 26px; padding: 20px 28px 48px; align-items: start; }

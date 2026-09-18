@@ -1,8 +1,11 @@
 <script lang="ts">
   import Icon from '../components/Icon.svelte';
   import ChatPanel from '../components/ChatPanel.svelte';
-  import { studio, goLive, endLive, saveStream, dropStream, watchStreamDoc, type Stream } from '../lib/social.svelte';
-  import { capture, canStream, elapsed } from '../lib/live.js';
+  import {
+    studio, goLive, endLive, saveStream, dropStream, watchStreamDoc, switchSource, popOutChat,
+    type Stream, type Source, type Picks,
+  } from '../lib/social.svelte';
+  import { capture, canStream, devices, elapsed } from '../lib/live.js';
   import { compact, human } from '../lib/format';
   import { go } from '../lib/router.svelte';
   import { say } from '../lib/sheet.svelte';
@@ -12,7 +15,27 @@
    * live, this page is the studio: the preview, the counts, the chat and the
    * button that ends it, followed by the question of whether to keep it.
    */
-  let source = $state<'camera' | 'screen'>('camera');
+  let source = $state<Source>('camera');
+  // The camera and microphone to use; '' is the system's default. OBS's
+  // virtual camera shows up here as a camera once OBS has started it.
+  let picks = $state<Picks>({ cam: '', mic: '' });
+  let cams = $state<{ id: string; label: string }[]>([]);
+  let mics = $state<{ id: string; label: string }[]>([]);
+  let switching = $state(false);
+  let switchErr = $state('');
+
+  // Device names only appear once a camera or microphone has been allowed, so
+  // the lists are read again whenever something is picked or plugged in.
+  async function listDevices() {
+    const d = await devices().catch(() => ({ cams: [], mics: [] }));
+    cams = d.cams;
+    mics = d.mics;
+  }
+  $effect(() => {
+    listDevices();
+    navigator.mediaDevices?.addEventListener('devicechange', listDevices);
+    return () => navigator.mediaDevices?.removeEventListener('devicechange', listDevices);
+  });
   let media = $state<MediaStream | null>(null);
   let title = $state('');
   let err = $state('');
@@ -30,7 +53,7 @@
   const running = $derived(live ? (studio.tick, elapsed(Date.now() - live.startedAt)) : '');
 
   $effect(() => {
-    if (preview) preview.srcObject = live ? live.media : media;
+    if (preview) preview.srcObject = live ? live.mix.stream : media;
   });
 
   $effect(() => {
@@ -41,13 +64,14 @@
   // Anything picked but never taken live is let go when the page is left.
   $effect(() => () => { if (media && !handedOver) media.getTracks().forEach(t => t.stop()); });
 
-  async function pick(src: 'camera' | 'screen') {
+  async function pick(src: Source) {
     source = src;
     err = '';
     try {
-      const m = await capture(src);
+      const m = await capture(src, picks);
       if (media && media !== m) media.getTracks().forEach(t => t.stop());
       media = m;
+      listDevices();
     } catch {
       media = null;
       err = src === 'screen'
@@ -66,12 +90,28 @@
       if (!media) await pick(source);
       if (!media) throw new Error(err || 'Nothing to share yet.');
       handedOver = true;
-      await goLive(title, media);
+      await goLive(title, media, source, { ...picks });
     } catch (e) {
       handedOver = false;
       err = human(e);
     }
     starting = false;
+  }
+
+  /** Mid-stream: put another source on air. Viewers and the recording carry straight on. */
+  async function change(kind: Source, p: Partial<Picks> = {}) {
+    if (switching) return;
+    switching = true;
+    switchErr = '';
+    try {
+      await switchSource(kind, p);
+      listDevices();
+    } catch {
+      switchErr = kind === 'screen'
+        ? 'Screen sharing was cancelled. You’re still showing the same thing as before.'
+        : 'That camera or microphone couldn’t be used. It may be busy in another app.';
+    }
+    switching = false;
   }
 
   async function end() {
@@ -134,7 +174,28 @@
           <span><Icon name="down" size={18} /><b>{compact(doc?.dislikeCount || 0)}</b></span>
           {#if doc?.tips}<span><Icon name="tip" size={18} /><b>${(doc.tips / 100).toFixed(2)}</b> in tips</span>{/if}
         </div>
+        <button class="btn" onclick={() => popOutChat(live.id)}><Icon name="popout" size={17} />{studio.chatOpen ? 'Chat is open' : 'Pop out chat'}</button>
         <button class="btn danger" onclick={end}>End stream</button>
+      </div>
+      <div class="switcher">
+        <div class="head"><b>On air</b><span class="muted">Switch what you’re showing, or to another camera or microphone. Viewers don’t get cut off.</span></div>
+        <div class="chips">
+          <button class="chip" class:on={live.source === 'camera'} disabled={switching} onclick={() => change('camera')}><Icon name="camera" size={16} />Camera</button>
+          <button class="chip" class:on={live.source === 'screen'} disabled={switching} onclick={() => change('screen')}><Icon name="screen" size={16} />Screen</button>
+        </div>
+        <div class="devices">
+          <label><Icon name="camera" size={17} />
+            <select class="field sel" value={live.picks.cam} disabled={switching} onchange={e => change('camera', { cam: e.currentTarget.value })}>
+              <option value="">Default camera</option>
+              {#each cams as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
+            </select></label>
+          <label><Icon name="mic" size={17} />
+            <select class="field sel" value={live.picks.mic} disabled={switching} onchange={e => change(live.source, { mic: e.currentTarget.value })}>
+              <option value="">Default microphone</option>
+              {#each mics as m (m.id)}<option value={m.id}>{m.label}</option>{/each}
+            </select></label>
+        </div>
+        {#if switchErr}<p class="err">{switchErr}</p>{/if}
       </div>
       <p class="muted note">Viewers find you at the top of Home while you’re on air, and everyone who follows you sees a red ring on your picture. Only you see this preview.</p>
     </div>
@@ -154,6 +215,18 @@
       <button class="chip" class:on={source === 'camera'} onclick={() => pick('camera')}><Icon name="camera" size={16} />Camera</button>
       <button class="chip" class:on={source === 'screen'} onclick={() => pick('screen')}><Icon name="screen" size={16} />Screen</button>
     </div>
+    <div class="devices">
+      <label><Icon name="camera" size={17} />
+        <select class="field sel" bind:value={picks.cam} onchange={() => source === 'camera' && pick('camera')}>
+          <option value="">Default camera</option>
+          {#each cams as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
+        </select></label>
+      <label><Icon name="mic" size={17} />
+        <select class="field sel" bind:value={picks.mic} onchange={() => pick(source)}>
+          <option value="">Default microphone</option>
+          {#each mics as m (m.id)}<option value={m.id}>{m.label}</option>{/each}
+        </select></label>
+    </div>
     <input class="field" bind:value={title} maxlength="120" placeholder="What are you streaming? e.g. Building a Python bot"
       onkeydown={e => e.key === 'Enter' && start()} />
     {#if err}<p class="err">{err}</p>{/if}
@@ -161,7 +234,8 @@
       <a class="btn" href="#/">Cancel</a>
       <button class="btn brand big" onclick={start} disabled={starting}>{starting ? 'Starting…' : 'Go live'}</button>
     </div>
-    <p class="muted note">You choose at the end whether to save the stream. Every viewer connects straight to you, so it suits a small audience.</p>
+    <p class="muted note">You choose at the end whether to save the stream. Every viewer connects straight to you, so it suits a small audience.
+      Using OBS? Start its virtual camera and pick “OBS Virtual Camera” above. To let viewers tip you, <a href="#/you">set up payouts</a> on your page.</p>
   </div>
 {/if}
 
@@ -191,5 +265,18 @@
   .stats { flex: 1; display: flex; flex-wrap: wrap; gap: 16px; color: var(--muted); font-weight: 700; }
   .stats span { display: inline-flex; align-items: center; gap: 6px; }
   .stats b { color: var(--text); }
+  .devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin: 0 0 10px; }
+  .devices label { position: relative; display: block; }
+  .devices label :global(svg) { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+  .sel { width: 100%; box-sizing: border-box; padding-left: 38px; padding-right: 34px; appearance: none; cursor: pointer; text-overflow: ellipsis;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+  .switcher { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg2); }
+  .switcher .head { display: grid; gap: 2px; }
+  .switcher .head .muted { font-size: 13px; }
+  .switcher .chips { margin: 12px 0 10px; }
+  .switcher .devices { margin: 0; }
+  .note a { color: var(--blue, #3b82f6); font-weight: 600; }
+  .byline .btn { display: inline-flex; align-items: center; gap: 6px; }
   .empty { display: grid; gap: 6px; justify-items: center; text-align: center; padding: 60px 20px; }
 </style>

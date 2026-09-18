@@ -7,7 +7,8 @@
   import { human } from '../lib/format';
 
   /** The chat beside a stream, for the streamer and for everyone watching. */
-  let { streamId, hostUid }: { streamId: string; hostUid: string } = $props();
+  // fill: the whole of a window of its own (the pop-out chat) rather than a panel.
+  let { streamId, hostUid, fill = false }: { streamId: string; hostUid: string; fill?: boolean } = $props();
 
   let messages = $state<ChatMessage[]>([]);
   let ready = $state(false);
@@ -35,8 +36,8 @@
   const me = $derived(session.user?.uid);
 </script>
 
-<aside class="chat">
-  <div class="head">Live chat</div>
+<aside class="chat" class:fill>
+  {#if !fill}<div class="head">Live chat</div>{/if}
   <div class="list" bind:this={list}>
     {#if !ready}
       <div class="empty"><div class="spinner"></div></div>
@@ -71,6 +72,7 @@
     display: grid; grid-template-rows: auto 1fr auto; height: min(78vh, 720px); position: sticky; top: 12px;
     border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg2); overflow: hidden;
   }
+  .chat.fill { height: auto; min-height: 0; position: static; border: 0; border-radius: 0; grid-template-rows: 1fr auto; }
   .head { padding: 12px 16px; font-weight: 800; border-bottom: 1px solid var(--line); }
   .list { overflow-y: auto; padding: 8px 6px 8px 12px; display: grid; align-content: start; gap: 2px; }
   .empty { padding: 18px 4px; text-align: center; font-size: 13.5px; display: grid; place-items: center; }

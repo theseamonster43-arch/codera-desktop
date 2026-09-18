@@ -8,6 +8,7 @@
  *   #/search/<words>
  *   #/you  #/plus  #/new/<kind>
  *   #/mini/<id>?t=<sec>   the mini player window
+ *   #/chat/<id>           a stream's chat, in a window of its own
  */
 export const route = $state({ name: 'home', arg: '', params: {} as Record<string, string> });
 

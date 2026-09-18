@@ -54,4 +54,5 @@ export const ICONS: Record<string, string> = {
   send: s('M4.5 12 20 4.5l-5.5 15.5-3-6.5zM11.5 13.5 20 4.5'),
   camera: s('M3.5 8.6a2 2 0 0 1 2-2h1.7l1.1-2h7.4l1.1 2h1.7a2 2 0 0 1 2 2v8.9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z') + '<circle cx="12" cy="12.8" r="3.6"/>',
   screen: '<rect x="3" y="4.5" width="18" height="12" rx="2.2"/>' + s('M9 20h6M12 16.5V20'),
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/>' + s('M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7'),
 };

@@ -12,6 +12,7 @@
   import Plus from './pages/Plus.svelte';
   import Compose from './pages/Compose.svelte';
   import Mini from './pages/Mini.svelte';
+  import ChatWindow from './pages/ChatWindow.svelte';
   import GoLive from './pages/GoLive.svelte';
   import Stream from './pages/Stream.svelte';
   import User from './pages/User.svelte';
@@ -58,6 +59,8 @@
 
 {#if route.name === 'mini'}
   <Mini id={route.arg} start={Number(route.params.t) || 0} />
+{:else if route.name === 'chat'}
+  <ChatWindow id={route.arg} />
 {:else if !session.ready || (session.user && !session.profileReady)}
   <div class="boot"><div class="drag" data-tauri-drag-region></div><div class="pulse"><Mark size={84} /></div></div>
 {:else if !session.user}
@@ -87,8 +90,8 @@
   </div>
 {/if}
 
-{#if inTauri && !inShell && route.name !== 'mini'}<div class="topdrag" data-tauri-drag-region></div>{/if}
-{#if route.name !== 'mini'}<WindowControls />{/if}
+{#if inTauri && !inShell && route.name !== 'mini' && route.name !== 'chat'}<div class="topdrag" data-tauri-drag-region></div>{/if}
+{#if route.name !== 'mini' && route.name !== 'chat'}<WindowControls />{/if}
 
 <!-- While streaming, a way back to the studio from anywhere in the app. -->
 {#if studio.now && inShell && route.name !== 'golive'}

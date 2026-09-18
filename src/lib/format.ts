@@ -55,8 +55,10 @@ export function human(e: any): string {
   };
   if (e?.code && map[e.code]) return map[e.code];
   // The Functions SDK tacks the HTTP status on the end: that is for us.
-  if (e?.code === 'functions/failed-precondition' && e.message) {
+  // Other than a crash, what a Codera function says is written for people.
+  if (typeof e?.code === 'string' && e.code.startsWith('functions/') && e.code !== 'functions/internal' && e.message) {
     return String(e.message).replace(/\s*\[\d+\]$/, '');
   }
+  if (e instanceof Error && !(e as any).code && e.message) return e.message;
   return 'Something went wrong. Try again.';
 }
