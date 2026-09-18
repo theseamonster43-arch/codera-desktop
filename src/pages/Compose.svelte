@@ -83,6 +83,8 @@
     {#each [['post', 'Post', 'code'], ['short', 'Short', 'shorts'], ['video', 'Video', 'play']] as [id, label, icon]}
       <button class="tab" class:on={mode === id} onclick={() => go(`new/${id}`)}><Icon name={icon} size={18} />{label}</button>
     {/each}
+    <!-- Going live has its own page; it sits here with the other ways to make something. -->
+    <a class="tab" href="#/golive"><Icon name="live" size={18} />Go live</a>
   </div>
 
   <div class="grid">

@@ -78,7 +78,7 @@
     const out = await endLive();
     media = null;
     if (!out) return;
-    if (!out.blob) { dropStream(out.id); say('Stream ended.'); go('live'); return; }
+    if (!out.blob) { dropStream(out.id); say('Stream ended.'); go(''); return; }
     ended = { id: out.id, title: out.title, blob: out.blob, secs: out.secs };
   }
 
@@ -88,8 +88,8 @@
     try {
       await saveStream(ended.id, ended.title, ended.blob, ended.secs, f => (saving = f));
       ended = null;
-      say('Saved. It’s on the Live page.');
-      go('live');
+      say('Saved. It’s on your page and in the feed.');
+      go('');
     } catch (e) {
       saving = null;
       err = human(e);
@@ -101,14 +101,14 @@
     dropStream(ended.id);
     ended = null;
     say('Stream ended. It wasn’t saved.');
-    go('live');
+    go('');
   }
 </script>
 
 {#if ended}
   <div class="page narrow">
     <h1><Icon name="live" size={24} /> Save this stream?</h1>
-    <p class="muted">“{ended.title}” ran for {elapsed(ended.secs * 1000)}. Saved streams go on your page and on the Live page, where people can watch them back. Nothing has been uploaded yet.</p>
+    <p class="muted">“{ended.title}” ran for {elapsed(ended.secs * 1000)}. Saved streams go on your page and into people’s feeds, where they can watch them back. Nothing has been uploaded yet.</p>
     {#if saving !== null}<div class="bar"><i style:width="{Math.round(saving * 100)}%"></i></div>{/if}
     {#if err}<p class="err">{err}</p>{/if}
     <div class="row">
@@ -136,7 +136,7 @@
         </div>
         <button class="btn danger" onclick={end}>End stream</button>
       </div>
-      <p class="muted note">Viewers find you on the Live page, and everyone who follows you sees you at the top of Following. Only you see this preview.</p>
+      <p class="muted note">Viewers find you at the top of Home while you’re on air, and everyone who follows you sees a red ring on your picture. Only you see this preview.</p>
     </div>
     <ChatPanel streamId={live.id} hostUid={live.uid} />
   </div>
@@ -158,7 +158,7 @@
       onkeydown={e => e.key === 'Enter' && start()} />
     {#if err}<p class="err">{err}</p>{/if}
     <div class="row">
-      <a class="btn" href="#/live">Cancel</a>
+      <a class="btn" href="#/">Cancel</a>
       <button class="btn brand big" onclick={start} disabled={starting}>{starting ? 'Starting…' : 'Go live'}</button>
     </div>
     <p class="muted note">You choose at the end whether to save the stream. Every viewer connects straight to you, so it suits a small audience.</p>

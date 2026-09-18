@@ -1,7 +1,6 @@
 <script lang="ts">
   import Avatar from '../components/Avatar.svelte';
   import PostCard from '../components/PostCard.svelte';
-  import StreamCard from '../components/StreamCard.svelte';
   import Icon from '../components/Icon.svelte';
   import { faces, learnFaces, session } from '../lib/state.svelte';
   import { social, onAir, userHref } from '../lib/social.svelte';
@@ -33,10 +32,6 @@
         </a>
       {/each}
     </div>
-    {#if live.length}
-      <h2><Icon name="live" size={18} /> Live now</h2>
-      <div class="grid stagger">{#each live as s, i (s.id)}<StreamCard stream={s} index={i} />{/each}</div>
-    {/if}
     <h2>Latest from people you follow</h2>
     {#if latest.length}
       <div class="grid stagger">{#each latest as post, i (post.id)}<PostCard {post} index={i} />{/each}</div>

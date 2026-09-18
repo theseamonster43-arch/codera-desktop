@@ -133,8 +133,8 @@
   <div class="center gone">
     <Icon name="live" size={34} />
     <b>This stream has ended</b>
-    <span class="muted">{s?.authorName ? `If ${s.authorName} saved it, it’s on the Live page.` : 'Streams that were saved are on the Live page.'}</span>
-    <a class="btn" href="#/live">Go to Live</a>
+    <span class="muted">{s?.authorName ? `If ${s.authorName} saved it, it’s on their page and in the feed.` : 'Saved streams are in the feed.'}</span>
+    <a class="btn" href="#/">Back to Home</a>
   </div>
 {:else}
   <div class="page layout">

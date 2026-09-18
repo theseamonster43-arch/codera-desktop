@@ -15,8 +15,8 @@
   $effect(() => { if (query) nudgeText(query, WEIGHT.search, 'search:' + query); });
 
   const shown = $derived.by(() => {
-    // Saved streams have their own page; the feed is ranked for this person.
-    let list: Post[] = rank(session.posts.filter(p => p.type !== 'live' || query), social.taste, social.following);
+    // Saved streams are part of the feed; the whole feed is ranked for this person.
+    let list: Post[] = rank(session.posts, social.taste, social.following);
     if (query) {
       list = list.filter(p => [p.title, p.body, p.code, p.description, p.lang, face(p).name]
         .some(v => v && String(v).toLowerCase().includes(query)));
@@ -26,7 +26,7 @@
 
   const shorts = $derived(query || filter !== 'all' ? [] : (rank(session.posts.filter(p => p.type === 'short'), social.taste, social.following) as Post[]).slice(0, 12));
   const liveNow = $derived(query ? social.streams.filter(s => onAir(s) && [s.title, s.authorName].some(v => v && v.toLowerCase().includes(query)))
-    : filter === 'all' ? social.streams.filter(onAir).sort((a, b) => (+social.following.has(b.uid) - +social.following.has(a.uid)) || (b.watching || 0) - (a.watching || 0)).slice(0, 4) : []);
+    : filter === 'all' ? social.streams.filter(onAir).sort((a, b) => (+social.following.has(b.uid) - +social.following.has(a.uid)) || (b.watching || 0) - (a.watching || 0)) : []);
   const favs = $derived(favourites(social.taste).map((t: string) => (TOPIC_LABEL as Record<string, string>)[t] || t));
   const because = $derived(favs.length ? 'Because you watch ' + (favs.length > 1 ? favs.slice(0, -1).join(', ') + ' and ' + favs[favs.length - 1] : favs[0]) : '');
   const main = $derived(query || filter !== 'all' ? shown : shown.filter(p => p.type !== 'short'));
@@ -53,7 +53,7 @@
     </div>
   {:else}
     {#if liveNow.length}
-      <h2><Icon name="live" size={18} /> Live now {#if !query}<a class="more" href="#/live">See all</a>{/if}</h2>
+      <h2><Icon name="live" size={18} /> Live now</h2>
       <div class="grid stagger">{#each liveNow as s, i (s.id)}<StreamCard stream={s} index={i} />{/each}</div>
     {/if}
 

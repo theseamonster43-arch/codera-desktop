@@ -12,7 +12,6 @@
   import Plus from './pages/Plus.svelte';
   import Compose from './pages/Compose.svelte';
   import Mini from './pages/Mini.svelte';
-  import Live from './pages/Live.svelte';
   import GoLive from './pages/GoLive.svelte';
   import Stream from './pages/Stream.svelte';
   import User from './pages/User.svelte';
@@ -77,7 +76,6 @@
         {:else if route.name === 'you'}<You />
         {:else if route.name === 'plus'}<Plus />
         {:else if route.name === 'new'}<Compose kind={route.arg} />
-        {:else if route.name === 'live'}<Live />
         {:else if route.name === 'golive'}<GoLive />
         {:else if route.name === 'stream'}<Stream id={route.arg} />
         {:else if route.name === 'u'}<User arg={route.arg} />
