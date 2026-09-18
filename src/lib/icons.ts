@@ -46,4 +46,12 @@ export const ICONS: Record<string, string> = {
   winMax: '<rect x="6.5" y="6.5" width="11" height="11" rx="1.2" stroke-width="1.3"/>',
   winClose: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke-width="1.3"/>',
   chevronLeft: s('M15 5l-7 7 7 7'),
+  live: '<circle cx="12" cy="12" r="2.3" fill="currentColor" stroke="none"/>' + s('M8.3 8.3a5.3 5.3 0 0 0 0 7.4M15.7 8.3a5.3 5.3 0 0 1 0 7.4M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2'),
+  liveOn: '<circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/><path d="M8.3 8.3a5.3 5.3 0 0 0 0 7.4M15.7 8.3a5.3 5.3 0 0 1 0 7.4M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2" stroke-width="2.3"/>',
+  followed: '<circle cx="9" cy="8" r="3.4"/>' + s('M2.8 20.2c0-3.3 2.8-5.4 6.2-5.4s6.2 2.1 6.2 5.4M16.5 5.2a3.2 3.2 0 0 1 0 6.1M17.8 14.9c2.2.5 3.7 2.1 3.7 4.4'),
+  followedOn: '<circle cx="9" cy="8" r="3.4" fill="currentColor" stroke="none"/>' + fill('M2.8 20.2c0-3.3 2.8-5.4 6.2-5.4s6.2 2.1 6.2 5.4z') + s('M16.5 5.2a3.2 3.2 0 0 1 0 6.1M17.8 14.9c2.2.5 3.7 2.1 3.7 4.4'),
+  tip: '<circle cx="12" cy="12" r="8.6"/>' + s('M14.7 9.4c-.5-.9-1.5-1.5-2.7-1.5-1.5 0-2.7.8-2.7 2s1.1 1.7 2.7 2 2.7.8 2.7 2.1-1.2 2-2.7 2c-1.2 0-2.3-.6-2.8-1.5M12 6.3v1.6M12 16.1v1.6'),
+  send: s('M4.5 12 20 4.5l-5.5 15.5-3-6.5zM11.5 13.5 20 4.5'),
+  camera: s('M3.5 8.6a2 2 0 0 1 2-2h1.7l1.1-2h7.4l1.1 2h1.7a2 2 0 0 1 2 2v8.9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z') + '<circle cx="12" cy="12.8" r="3.6"/>',
+  screen: '<rect x="3" y="4.5" width="18" height="12" rx="2.2"/>' + s('M9 20h6M12 16.5V20'),
 };

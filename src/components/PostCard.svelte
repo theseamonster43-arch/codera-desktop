@@ -3,6 +3,7 @@
   import { face, type Post } from '../lib/state.svelte';
   import { ago, clock, plural } from '../lib/format';
   import { go } from '../lib/router.svelte';
+  import { userHref } from '../lib/social.svelte';
 
   let { post, index = 0 }: { post: Post; index?: number } = $props();
 
@@ -22,7 +23,7 @@
 </script>
 
 {#if isVideo}
-  <button class="card" style:--i={Math.min(index, 14)} onclick={open}
+  <div class="card" style:--i={Math.min(index, 14)} onclick={open} onkeydown={e => e.key === 'Enter' && open()} role="link" tabindex="0"
     onmouseenter={() => preview?.play().catch(() => {})}
     onmouseleave={() => { preview?.pause(); poster(); }}>
     <div class="thumb" class:tall={post.type === 'short'}>
@@ -30,28 +31,29 @@
       <video bind:this={preview} src={post.videoUrl} preload="metadata" muted playsinline onloadedmetadata={poster}></video>
       {#if post.type === 'short'}<span class="badge short">SHORT</span>
       {:else if post.duration}<span class="badge">{clock(post.duration)}</span>{/if}
+      {#if post.type === 'live'}<span class="badge stream">STREAM</span>{/if}
     </div>
     <div class="meta">
       <Avatar name={who.name} photo={who.photo} size={34} />
       <div class="words">
         <h3>{post.title}</h3>
-        <div class="muted">{who.name}</div>
+        <a class="muted who" href={userHref(post)} onclick={e => e.stopPropagation()}>{who.name}</a>
         <div class="muted">{plural(post.likeCount, 'like')} · {ago(post.createdAt)}</div>
       </div>
     </div>
-  </button>
+  </div>
 {:else}
-  <button class="card text" style:--i={Math.min(index, 14)} onclick={open}>
+  <div class="card text" style:--i={Math.min(index, 14)} onclick={open} onkeydown={e => e.key === 'Enter' && open()} role="link" tabindex="0">
     <div class="head">
       <Avatar name={who.name} photo={who.photo} size={28} />
-      <span class="muted">{who.name} · {ago(post.createdAt)}</span>
+      <span class="muted"><a class="who" href={userHref(post)} onclick={e => e.stopPropagation()}>{who.name}</a> · {ago(post.createdAt)}</span>
     </div>
     <h3>{post.title}</h3>
     {#if post.imageUrl}<img class="pic" src={post.imageUrl} alt="" loading="lazy" draggable="false" />{/if}
     {#if post.body}<p class="body">{post.body}</p>{/if}
     {#if post.code}<pre class="code">{post.code.split('\n').slice(0, 6).join('\n')}</pre>{/if}
     <div class="muted small">{plural(post.likeCount, 'like')} · {plural(post.commentCount, 'comment')}</div>
-  </button>
+  </div>
 {/if}
 
 <style>
@@ -69,6 +71,9 @@
   .card:hover .thumb video { transform: scale(1.05); }
   .badge { position: absolute; right: 8px; bottom: 8px; padding: 2px 6px; border-radius: 6px; background: rgba(0,0,0,.78); color: #fff; font-size: 11.5px; font-weight: 700; }
   .badge.short { left: 8px; right: auto; background: var(--brand); }
+  .badge.stream { left: 8px; right: auto; background: #ef4444; letter-spacing: .4px; }
+  .who { display: block; width: fit-content; }
+  .who:hover { color: var(--text); text-decoration: underline; }
 
   .meta { display: flex; gap: 11px; padding: 11px 2px 0; }
   .words { min-width: 0; }

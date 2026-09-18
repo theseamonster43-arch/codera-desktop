@@ -13,11 +13,14 @@
   const items = [
     { to: '', name: 'home', icon: 'home', label: 'Home' },
     { to: 'shorts', name: 'shorts', icon: 'shorts', label: 'Shorts' },
+    { to: 'live', name: 'live', icon: 'live', label: 'Live' },
+    { to: 'followed', name: 'followed', icon: 'followed', label: 'Following' },
     { to: 'you', name: 'you', icon: 'person', label: 'You' },
   ];
 
   const mine = $derived(session.posts.filter(p => p.uid === session.user?.uid));
-  const on = (name: string) => route.name === name || (name === 'home' && ['search', 'watch'].includes(route.name));
+  const on = (name: string) => route.name === name || (name === 'home' && ['search', 'watch'].includes(route.name))
+    || (name === 'live' && ['golive', 'stream'].includes(route.name));
 </script>
 
 <nav class="side" class:narrow>

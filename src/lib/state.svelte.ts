@@ -5,8 +5,9 @@ import {
 
 import { auth, db } from './firebase';
 import { notify } from './native';
+import { startSocial } from './social.svelte';
 
-export type Kind = 'post' | 'short' | 'video';
+export type Kind = 'post' | 'short' | 'video' | 'live';
 
 export interface Post {
   id: string;
@@ -104,6 +105,7 @@ export function startSession() {
     session.postsReady = false;
     session.plus = { loading: true, active: false, cancelled: false, endsAt: 0 };
     session.ready = true;
+    startSocial(user ? user.uid : null);
     if (!user) return;
 
     const seen = new Set<string>();

@@ -1,14 +1,22 @@
 <script lang="ts">
   import PostCard from '../components/PostCard.svelte';
-  import { session, face, type Kind } from '../lib/state.svelte';
+  import StreamCard from '../components/StreamCard.svelte';
+  import Icon from '../components/Icon.svelte';
+  import { session, face, type Kind, type Post } from '../lib/state.svelte';
   import { route } from '../lib/router.svelte';
+  import { social, onAir, nudgeText, WEIGHT } from '../lib/social.svelte';
+  import { rank, favourites, TOPIC_LABEL } from '../lib/taste.js';
 
   let filter = $state<'all' | Kind>('all');
 
   const query = $derived(route.name === 'search' ? route.arg.toLowerCase() : '');
 
+  // What people search for says what they want to learn.
+  $effect(() => { if (query) nudgeText(query, WEIGHT.search, 'search:' + query); });
+
   const shown = $derived.by(() => {
-    let list = session.posts;
+    // Saved streams have their own page; the feed is ranked for this person.
+    let list: Post[] = rank(session.posts.filter(p => p.type !== 'live' || query), social.taste, social.following);
     if (query) {
       list = list.filter(p => [p.title, p.body, p.code, p.description, p.lang, face(p).name]
         .some(v => v && String(v).toLowerCase().includes(query)));
@@ -16,7 +24,11 @@
     return filter === 'all' ? list : list.filter(p => p.type === filter);
   });
 
-  const shorts = $derived(query || filter !== 'all' ? [] : session.posts.filter(p => p.type === 'short').slice(0, 12));
+  const shorts = $derived(query || filter !== 'all' ? [] : (rank(session.posts.filter(p => p.type === 'short'), social.taste, social.following) as Post[]).slice(0, 12));
+  const liveNow = $derived(query ? social.streams.filter(s => onAir(s) && [s.title, s.authorName].some(v => v && v.toLowerCase().includes(query)))
+    : filter === 'all' ? social.streams.filter(onAir).sort((a, b) => (+social.following.has(b.uid) - +social.following.has(a.uid)) || (b.watching || 0) - (a.watching || 0)).slice(0, 4) : []);
+  const favs = $derived(favourites(social.taste).map((t: string) => (TOPIC_LABEL as Record<string, string>)[t] || t));
+  const because = $derived(favs.length ? 'Because you watch ' + (favs.length > 1 ? favs.slice(0, -1).join(', ') + ' and ' + favs[favs.length - 1] : favs[0]) : '');
   const main = $derived(query || filter !== 'all' ? shown : shown.filter(p => p.type !== 'short'));
 
   const FILTERS: { id: 'all' | Kind; label: string }[] = [
@@ -40,6 +52,11 @@
       {#each Array(8) as _}<div><div class="skeleton ph"></div><div class="skeleton ln"></div><div class="skeleton ln s"></div></div>{/each}
     </div>
   {:else}
+    {#if liveNow.length}
+      <h2><Icon name="live" size={18} /> Live now {#if !query}<a class="more" href="#/live">See all</a>{/if}</h2>
+      <div class="grid stagger">{#each liveNow as s, i (s.id)}<StreamCard stream={s} index={i} />{/each}</div>
+    {/if}
+
     {#if shorts.length}
       <h2>Shorts</h2>
       <div class="shelf stagger">
@@ -48,7 +65,7 @@
     {/if}
 
     {#if main.length}
-      {#if shorts.length}<h2>Latest</h2>{/if}
+      {#if !query}<h2>{filter === 'all' ? 'Recommended' : FILTERS.find(f => f.id === filter)?.label}{#if because}<span class="because">{because}</span>{/if}</h2>{/if}
       <div class="grid stagger">
         {#each main as post, i (post.id)}<PostCard {post} index={i} />{/each}
       </div>
@@ -64,7 +81,9 @@
 <style>
   .wrap { padding: 20px 28px 48px; }
   h1 { margin: 4px 0 16px; font-size: 24px; font-weight: 900; letter-spacing: -0.7px; }
-  h2 { margin: 26px 0 12px; font-size: 17px; font-weight: 800; }
+  h2 { margin: 26px 0 12px; font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+  .because, .more { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+  .more:hover { color: var(--text); }
   .chips { display: flex; gap: 8px; flex-wrap: wrap; }
   .grid { display: grid; gap: 26px 18px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-top: 18px; }
   .shelf { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; }

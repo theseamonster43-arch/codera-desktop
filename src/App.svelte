@@ -12,6 +12,14 @@
   import Plus from './pages/Plus.svelte';
   import Compose from './pages/Compose.svelte';
   import Mini from './pages/Mini.svelte';
+  import Live from './pages/Live.svelte';
+  import GoLive from './pages/GoLive.svelte';
+  import Stream from './pages/Stream.svelte';
+  import User from './pages/User.svelte';
+  import Following from './pages/Following.svelte';
+  import { studio } from './lib/social.svelte';
+  import { elapsed } from './lib/live.js';
+  import { compact } from './lib/format';
   import WindowControls from './components/WindowControls.svelte';
   import { session, startSession } from './lib/state.svelte';
   import { route, back } from './lib/router.svelte';
@@ -69,6 +77,11 @@
         {:else if route.name === 'you'}<You />
         {:else if route.name === 'plus'}<Plus />
         {:else if route.name === 'new'}<Compose kind={route.arg} />
+        {:else if route.name === 'live'}<Live />
+        {:else if route.name === 'golive'}<GoLive />
+        {:else if route.name === 'stream'}<Stream id={route.arg} />
+        {:else if route.name === 'u'}<User arg={route.arg} />
+        {:else if route.name === 'followed'}<Following />
         {:else}<Home />
         {/if}
       {/key}
@@ -78,6 +91,12 @@
 
 {#if inTauri && !inShell && route.name !== 'mini'}<div class="topdrag" data-tauri-drag-region></div>{/if}
 {#if route.name !== 'mini'}<WindowControls />{/if}
+
+<!-- While streaming, a way back to the studio from anywhere in the app. -->
+{#if studio.now && inShell && route.name !== 'golive'}
+  <a class="on-air" href="#/golive"><span class="dot"></span><b>You’re live</b>
+    <span>{(studio.tick, elapsed(Date.now() - studio.now.startedAt))} · {compact(studio.now.watching)} watching</span></a>
+{/if}
 
 <Sheet />
 
@@ -92,6 +111,14 @@
   .shell :global(.side) { grid-area: side; }
   main { grid-area: main; overflow-y: auto; overflow-x: hidden; min-width: 0; position: relative; scroll-behavior: auto; }
 
+  .on-air {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 60;
+    display: inline-flex; align-items: center; gap: 10px; padding: 10px 18px; border-radius: 999px;
+    background: #ef4444; color: #fff; font-size: 13.5px; font-weight: 700; box-shadow: 0 12px 34px rgba(239, 68, 68, .4);
+  }
+  .on-air span:last-child { opacity: .85; font-variant-numeric: tabular-nums; }
+  .on-air .dot { width: 8px; height: 8px; border-radius: 99px; background: #fff; animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
   .topdrag { position: fixed; inset: 0 0 auto; height: 32px; z-index: 40; }
   .boot { height: 100%; display: grid; place-items: center; position: relative; }
   .drag { position: absolute; inset: 0 0 auto; height: var(--titlebar); }

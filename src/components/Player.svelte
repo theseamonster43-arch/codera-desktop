@@ -29,6 +29,21 @@
   let idleTimer: ReturnType<typeof setTimeout>;
   let flashTimer: ReturnType<typeof setTimeout>;
 
+  // A recording made in a browser (every saved stream) can arrive without its
+  // length written in, which leaves the bar unable to seek. Asking for a moment far
+  // past the end makes the browser read to the end and work it out.
+  function fixLength() {
+    const v = video;
+    if (!v || v.duration !== Infinity) return;
+    const back = () => {
+      if (v.duration === Infinity) return;
+      v.removeEventListener('durationchange', back);
+      v.currentTime = 0;
+    };
+    v.addEventListener('durationchange', back);
+    v.currentTime = 1e101;
+  }
+
   function wake() {
     idle = false;
     clearTimeout(idleTimer);
@@ -109,7 +124,7 @@
   <!-- svelte-ignore a11y_media_has_caption -->
   <video
     bind:this={video} {src} playsinline preload="auto"
-    bind:paused bind:currentTime={time} bind:duration bind:volume bind:muted
+    bind:paused bind:currentTime={time} bind:duration bind:volume bind:muted onloadedmetadata={fixLength}
     onprogress={() => { if (video?.buffered.length && duration) buffered = video.buffered.end(video.buffered.length - 1) / duration; }}
     onwaiting={() => (waiting = true)} onplaying={() => (waiting = false)} oncanplay={() => (waiting = false)}
     onclick={onVideoClick} ondblclick={onVideoDouble}

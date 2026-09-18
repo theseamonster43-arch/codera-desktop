@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Shown by macOS the first time Codera asks, when someone goes live. -->
+  <key>NSCameraUsageDescription</key>
+  <string>Codera uses your camera when you go live.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Codera uses your microphone when you go live, so viewers can hear you.</string>
+</dict>
+</plist>

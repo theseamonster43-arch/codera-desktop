@@ -2,6 +2,10 @@
   import Player from '../components/Player.svelte';
   import Avatar from '../components/Avatar.svelte';
   import Icon from '../components/Icon.svelte';
+  import FollowButton from '../components/FollowButton.svelte';
+  import { social, userHref, nudgePost, loadPost, WEIGHT } from '../lib/social.svelte';
+  import { rank } from '../lib/taste.js';
+  import type { Post } from '../lib/state.svelte';
   import { session, face, myName, myPhoto, learnFaces } from '../lib/state.svelte';
   import {
     vote, watchMyVote, watchComments, addComment, deleteComment, deletePost, type Comment,
@@ -12,10 +16,25 @@
 
   let { id }: { id: string } = $props();
 
-  const post = $derived(session.posts.find(p => p.id === id));
+  // Older than the feed's latest posts, reached from someone's page: read on its own.
+  let extra = $state<Post | null>(null);
+  let missing = $state(false);
+  const post = $derived(session.posts.find(p => p.id === id) || (extra && extra.id === id ? extra : undefined));
+  $effect(() => {
+    if (!session.postsReady || session.posts.some(p => p.id === id)) return;
+    missing = false;
+    loadPost(id).then(p => { if (p) extra = p; else missing = true; }).catch(() => (missing = true));
+  });
+  $effect(() => { if (post) nudgePost(post, WEIGHT.watch, 'watch:' + post.id); });
   const who = $derived(post ? face(post) : { name: '', photo: null });
   const mine = $derived(!!post && post.uid === session.user?.uid);
-  const next = $derived(session.posts.filter(p => p.id !== id && p.type !== 'short').slice(0, 16));
+  const next = $derived(rank(session.posts.filter(p => p.id !== id && p.type !== 'short'), social.taste, social.following).slice(0, 16));
+
+  async function voteAndLearn(want: 1 | -1) {
+    const had = myVote;
+    await vote(id, want);
+    if (had !== want) nudgePost(post, want === 1 ? WEIGHT.like : WEIGHT.dislike);
+  }
 
   let myVote = $state(0);
   let comments = $state<Comment[]>([]);
@@ -33,7 +52,7 @@
     if (!text || sending) return;
     sending = true;
     draft = '';
-    try { await addComment(id, text); } catch { draft = text; say("Couldn't post that comment."); }
+    try { await addComment(id, text); nudgePost(post, WEIGHT.comment, 'comment:' + id); } catch { draft = text; say("Couldn't post that comment."); }
     sending = false;
   }
 
@@ -49,7 +68,7 @@
 
 {#if !post}
   <div class="gone">
-    {#if session.postsReady}<b>That post is gone</b><span class="muted">It may have been deleted by whoever posted it.</span>
+    {#if session.postsReady && missing}<b>That post is gone</b><span class="muted">It may have been deleted by whoever posted it.</span>
     {:else}<div class="spinner"></div>{/if}
   </div>
 {:else}
@@ -66,14 +85,15 @@
       <h1 class="selectable">{post.title}</h1>
 
       <div class="byline">
-        <Avatar name={who.name} photo={who.photo} size={40} />
+        <a href={userHref(post)}><Avatar name={who.name} photo={who.photo} size={40} /></a>
         <div>
-          <b>{who.name}</b>
-          <div class="muted">{ago(post.createdAt)}{post.duration ? ' · ' + clock(post.duration) : ''}</div>
+          <a class="name" href={userHref(post)}><b>{who.name}</b></a>
+          <div class="muted">{ago(post.createdAt)}{post.duration ? ' · ' + clock(post.duration) : ''}{post.type === 'live' ? ' · Saved stream' : ''}</div>
         </div>
         <div class="acts">
-          <button class="btn" class:on={myVote === 1} onclick={() => vote(id, 1)}><Icon name="up" size={18} />{compact(post.likeCount)}</button>
-          <button class="btn" class:down={myVote === -1} onclick={() => vote(id, -1)}><Icon name="down" size={18} />{compact(post.dislikeCount)}</button>
+          <FollowButton uid={post.uid} />
+          <button class="btn" class:on={myVote === 1} onclick={() => voteAndLearn(1)}><Icon name="up" size={18} />{compact(post.likeCount)}</button>
+          <button class="btn" class:down={myVote === -1} onclick={() => voteAndLearn(-1)}><Icon name="down" size={18} />{compact(post.dislikeCount)}</button>
           {#if mine}<button class="btn danger" onclick={remove}><Icon name="trash" size={17} />Delete</button>{/if}
         </div>
       </div>
@@ -100,7 +120,7 @@
         <div class="comment">
           <Avatar name={cw.name} photo={cw.photo} size={34} />
           <div class="ctext">
-            <div><b>{cw.name}</b> <span class="muted">{ago(c.createdAt)}</span></div>
+            <div><a class="name" href={userHref(c)}><b>{cw.name}</b></a> <span class="muted">{ago(c.createdAt)}</span></div>
             <p class="selectable">{c.text}</p>
           </div>
           {#if c.uid === session.user?.uid || mine}
@@ -138,6 +158,7 @@
 {/if}
 
 <style>
+  .name:hover b { text-decoration: underline; }
   .gone { height: 100%; display: grid; place-content: center; justify-items: center; gap: 6px; }
   .watch { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 26px; padding: 20px 28px 48px; max-width: 1800px; margin: 0 auto; }
   @media (max-width: 1180px) { .watch { grid-template-columns: minmax(0, 1fr); } }
