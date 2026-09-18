@@ -62,6 +62,11 @@ export function onAir(s: Stream | null | undefined) {
 
 let stops: (() => void)[] = [];
 
+// Until the saved scores have been read, actions wait here: writing before then
+// would replace everything learned so far with just the latest action.
+let tasteReady = false;
+let tastePending: [string[], number][] = [];
+
 /** Starts the listeners for a signed-in account; call with null on sign-out. */
 export function startSocial(uid: string | null) {
   stops.forEach(f => f());
@@ -69,6 +74,8 @@ export function startSocial(uid: string | null) {
   social.following = new Set();
   social.streams = [];
   social.taste = {};
+  tasteReady = false;
+  tastePending = [];
   if (!uid) return;
 
   stops.push(onSnapshot(query(collection(db, 'follows'), where('from', '==', uid)), snap => {
@@ -82,6 +89,12 @@ export function startSocial(uid: string | null) {
 
   stops.push(onSnapshot(doc(db, 'taste', uid), snap => {
     social.taste = snap.exists() ? (snap.data() as Record<string, number>) : {};
+    if (!tasteReady) {
+      tasteReady = true;
+      const waiting = tastePending;
+      tastePending = [];
+      waiting.forEach(([t, w]) => nudge(t, w));
+    }
   }, () => {}));
 }
 
@@ -101,6 +114,7 @@ export function nudge(topics: string[], weight: number, once?: string) {
     if (nudged.has(once)) return;
     nudged.add(once);
   }
+  if (!tasteReady) { tastePending.push([topics, weight]); return; }
   social.taste = learn(social.taste, topics, weight) as Record<string, number>;
   clearTimeout(tasteTimer);
   const snapshot = { ...social.taste };
