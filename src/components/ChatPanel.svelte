@@ -77,12 +77,14 @@
   .list { overflow-y: auto; padding: 8px 6px 8px 12px; display: grid; align-content: start; gap: 2px; }
   .empty { padding: 18px 4px; text-align: center; font-size: 13.5px; display: grid; place-items: center; }
   .msg { display: flex; gap: 9px; align-items: flex-start; padding: 6px; border-radius: 10px; font-size: 13.8px; line-height: 1.45; }
-  .body { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .body { flex: 1; min-width: 0; overflow-wrap: anywhere; padding-top: 3px; }
   .name { margin-right: 6px; font-size: 13px; font-weight: 700; color: var(--muted); }
   .name:hover { text-decoration: underline; }
   .host .name { color: var(--green, #22c55e); }
   .host-tag { font-size: 10px; font-weight: 900; letter-spacing: .4px; text-transform: uppercase; color: #22c55e; margin-right: 6px; }
-  .amt { display: inline-flex; align-items: center; gap: 4px; margin-right: 6px; font-weight: 900; color: #f59e0b; }
+  /* Inline, so a tip amount shares the baseline of the name and the words. */
+  .amt { white-space: nowrap; margin-right: 6px; font-weight: 900; color: #f59e0b; }
+  .amt :global(svg) { vertical-align: -2px; margin-right: 3px; }
   .msg.tip { background: linear-gradient(135deg, rgba(245, 158, 11, .22), rgba(239, 68, 68, .14)); border: 1px solid rgba(245, 158, 11, .45); margin: 4px 0; }
   .x { border: 0; background: none; color: var(--muted); font-size: 16px; line-height: 1; opacity: 0; padding: 2px 4px; }
   .msg:hover .x { opacity: 1; }

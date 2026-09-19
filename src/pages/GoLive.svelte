@@ -263,7 +263,9 @@
   .title { font-size: 20px; margin: 16px 0 10px; }
   .byline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .stats { flex: 1; display: flex; flex-wrap: wrap; gap: 16px; color: var(--muted); font-weight: 700; }
-  .stats span { display: inline-flex; align-items: center; gap: 6px; }
+  .stats span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  /* On a narrow window the counts keep a line of their own, the buttons another. */
+  @media (max-width: 760px) { .stats { flex-basis: 100%; } .byline .btn { flex: 1; justify-content: center; } }
   .stats b { color: var(--text); }
   .devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin: 0 0 10px; }
   .devices label { position: relative; display: block; }

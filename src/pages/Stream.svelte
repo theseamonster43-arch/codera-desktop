@@ -216,6 +216,8 @@
   .glass { background: rgba(0, 0, 0, .6) !important; color: #fff !important; border-color: rgba(255, 255, 255, .2) !important; }
   h1 { font-size: 20px; font-weight: 800; margin: 16px 0 12px; }
   .byline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .byline :global(.stats span), .stats span { white-space: nowrap; }
+  @media (max-width: 700px) { .acts { width: 100%; margin-left: 0; justify-content: flex-start; } }
   .who { flex: 1; min-width: 0; }
   .who a:hover b { text-decoration: underline; }
   .acts { display: flex; gap: 8px; flex-wrap: wrap; }
