@@ -25,8 +25,16 @@
   import { route, back } from './lib/router.svelte';
   import { inTauri } from './lib/native';
   import { frame } from './lib/frame.svelte';
+  import Gate from './components/Gate.svelte';
+  import { shutHere } from './lib/safety.svelte';
+  import { build, watchBuild } from './lib/build.svelte';
 
   startSession();
+  watchBuild();
+
+  // Decided once, before anything else is drawn: where this is, and whether
+  // this build is still allowed to be here.
+  const shut = shutHere();
 
   // The sidebar folds to an icon rail on a narrow window; the menu button
   // flips it by hand, and the choice sticks.
@@ -57,7 +65,14 @@
 
 <svelte:window bind:innerWidth={width} onmouseup={mouse} onkeydown={keys} />
 
-{#if route.name === 'mini'}
+{#if shut || build.outdated}
+  <!-- Ahead of every route, the mini player included: if Codera can't be used
+       here, there is nothing underneath this worth reaching. -->
+  <div class="stop">
+    <div class="drag" data-tauri-drag-region></div>
+    <Gate kind={shut ? 'region' : 'outdated'} where={shut?.where ?? ''} />
+  </div>
+{:else if route.name === 'mini'}
   <Mini id={route.arg} start={Number(route.params.t) || 0} />
 {:else if route.name === 'chat'}
   <ChatWindow id={route.arg} />
@@ -122,6 +137,7 @@
   @keyframes blink { 50% { opacity: .35; } }
   .topdrag { position: fixed; inset: 0 0 auto; height: 32px; z-index: 40; }
   .boot { height: 100%; display: grid; place-items: center; position: relative; }
+  .stop { height: 100%; position: relative; background: var(--bg); }
   .drag { position: absolute; inset: 0 0 auto; height: var(--titlebar); }
   .pulse { animation: breathe 1.6s ease-in-out infinite; }
   @keyframes breathe { 0%, 100% { transform: scale(1); opacity: .85; } 50% { transform: scale(1.06); opacity: 1; } }

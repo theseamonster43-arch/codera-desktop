@@ -6,6 +6,8 @@ import {
 import { auth, db } from './firebase';
 import { notify } from './native';
 import { startSocial } from './social.svelte';
+import { startSafety } from './safety.svelte';
+import { stamp } from './build.svelte';
 
 export type Kind = 'post' | 'short' | 'video' | 'live';
 
@@ -106,6 +108,10 @@ export function startSession() {
     session.plus = { loading: true, active: false, cancelled: false, endsAt: 0 };
     session.ready = true;
     startSocial(user ? user.uid : null);
+    startSafety(user ? user.uid : null);
+    // Says which build is asking, so the rules can turn away one too old to
+    // know the rules it would be breaking.
+    if (user) stamp(user.uid);
     if (!user) return;
 
     const seen = new Set<string>();

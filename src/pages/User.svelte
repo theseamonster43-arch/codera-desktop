@@ -6,6 +6,8 @@
   import { social, onAir, resolveUser, loadUser } from '../lib/social.svelte';
   import { compact, plural, human } from '../lib/format';
   import { go } from '../lib/router.svelte';
+  import LinkRow from '../components/LinkRow.svelte';
+  import { bioParts, isAdult } from '../lib/safety.svelte';
 
   /** Someone's page: their banner, name, followers, and everything they posted. */
   let { arg }: { arg: string } = $props();
@@ -76,7 +78,10 @@
         <FollowButton uid={uid} />
       </div>
     </div>
-    {#if data.profile.bio}<p class="bio selectable">{data.profile.bio}</p>{/if}
+    {#if data.profile.bio}
+      <p class="bio selectable">{#each bioParts(data.profile.bio, isAdult()) as part}{#if part.hidden}<span class="hid">{part.text}</span>{:else}{part.text}{/if}{/each}</p>
+    {/if}
+    <LinkRow links={(data.profile as { links?: unknown }).links} />
     <div class="chips">
       {#each CHOICES as c}
         <button class="chip" class:on={filter === c.id} onclick={() => (filter = c.id)}>{c.label} <i>{c.n}</i></button>
@@ -105,6 +110,7 @@
   .live { background: #ef4444; color: #fff; border-color: transparent; }
   .dot { width: 8px; height: 8px; border-radius: 99px; background: #fff; animation: blink 1.4s ease-in-out infinite; }
   @keyframes blink { 50% { opacity: .35; } }
+  .hid { display: inline-block; padding: 0 6px; border-radius: 5px; background: var(--hover); color: var(--muted); font-size: 0.86em; font-weight: 700; }
   .bio { margin: 0 12px 16px; max-width: 760px; line-height: 1.6; color: var(--muted); white-space: pre-wrap; }
   .chips { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
   .chip i { font-style: normal; opacity: .6; margin-left: 5px; }

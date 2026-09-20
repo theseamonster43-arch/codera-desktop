@@ -8,6 +8,8 @@
   import { plural } from '../lib/format';
   import { say } from '../lib/sheet.svelte';
   import { go } from '../lib/router.svelte';
+  import LinkRow from '../components/LinkRow.svelte';
+  import { ADULT_AGE, bioPoints, isAdult } from '../lib/safety.svelte';
 
   const mine = $derived(session.posts.filter(p => p.uid === session.user?.uid));
   const likes = $derived(mine.reduce((n, p) => n + (p.likeCount || 0), 0));
@@ -84,11 +86,19 @@
       </div>
     {:else}
       {#if session.profile.bio}<p class="selectable">{session.profile.bio}</p>{/if}
+      {#if bioPoints(session.profile.bio) && !isAdult()}
+        <p class="warn">
+          Where this points is hidden from anyone who hasn't confirmed they're {ADULT_AGE} or
+          over. Confirm yours, or move it into your links.
+        </p>
+      {/if}
       <button class="btn ghost small" onclick={() => { bio = session.profile.bio || ''; editingBio = true; }}>
         {session.profile.bio ? 'Edit description' : 'Add a description'}
       </button>
     {/if}
   </div>
+
+  <LinkRow links={(session.profile as { links?: unknown }).links} mine />
 
   <Payouts />
 
@@ -129,6 +139,7 @@
   .bio p { margin: 4px 0 6px; color: var(--muted); line-height: 1.6; white-space: pre-wrap; }
   .biorow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
   .biorow span { flex: 1; font-size: 12.5px; }
+  .bio .warn { color: var(--muted); font-size: 12.5px; line-height: 1.55; margin: 6px 0 8px; }
   .small { height: 30px; padding: 0 10px; font-size: 13px; color: var(--muted); }
 
   .chips { display: flex; gap: 8px; margin-bottom: 18px; }
