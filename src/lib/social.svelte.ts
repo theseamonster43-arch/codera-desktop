@@ -284,7 +284,7 @@ export async function payoutsStatus(): Promise<Payouts> {
 export async function payoutsLink(country?: string, restart = false) {
   payoutsSeen = null;
   const res = await httpsCallable(functions, 'payoutsLink')({
-    back: 'https://codera-46b86.web.app/#/you', country, restart,
+    back: 'https://learncodera.com/#/you', country, restart,
   });
   return (res.data as { url: string }).url;
 }

@@ -36,4 +36,4 @@ export const STRIPE_PK = {
   test: 'pk_test_51UEWrl6MmwHJvfDUDKvxB0xnxR6xI0CKxFrLeRDCruLRHupCkLFBTLSBT0AhQm6XgHXrx1j84hZVdtJ1v2xR4yF400YEE2TpNO',
 };
 
-export const SITE = 'https://codera-46b86.web.app';
+export const SITE = 'https://learncodera.com';
