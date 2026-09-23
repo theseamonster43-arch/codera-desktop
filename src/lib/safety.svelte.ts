@@ -23,18 +23,19 @@ import { auth, db, functions } from './firebase';
 // the platform carries the penalty. Whether a place for learning to code is
 // caught by that turns on an exemption nobody has ruled on for us, so Codera
 // stays out until someone qualified says otherwise.
-const SHUT: Record<string, { where: string; zones: RegExp; tags: RegExp }> = {
-  AU: { where: 'Australia', zones: /^Australia\//i, tags: /-AU$/i },
+const SHUT: Record<string, { where: string; zones: RegExp }> = {
+  AU: { where: 'Australia', zones: /^Australia\//i },
 };
 
+// The clock only. The language a browser is set to was in here too and it was
+// wrong: an Australian living anywhere else still has en-AU, and would be shut
+// out of a country they are not in. What someone's language says about them is
+// who they are, not where they are.
 export function shutHere() {
   let zone = '';
   try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { /* older engine */ }
-  const tags = [navigator.language || ''].concat(navigator.languages || []);
   for (const code of Object.keys(SHUT)) {
-    const rule = SHUT[code];
-    if (rule.zones.test(zone)) return rule;
-    if (tags.some(t => rule.tags.test(t))) return rule;
+    if (SHUT[code].zones.test(zone)) return SHUT[code];
   }
   return null;
 }
@@ -128,7 +129,7 @@ const PUBLIC_PLACES = [
   'instagram.com', 'tiktok.com', 'twitch.tv', 'reddit.com', 'bsky.app', 'threads.net',
   'patreon.com', 'ko-fi.com', 'buymeacoffee.com', 'substack.com',
   'codesandbox.io', 'figma.com', 'notion.site', 'docs.google.com', 'developer.mozilla.org',
-  'codera-46b86.web.app',
+  'learncodera.com', 'codera-46b86.web.app',
 ];
 
 const PRIVATE_CHANNELS = [

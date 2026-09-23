@@ -138,6 +138,10 @@
   .topdrag { position: fixed; inset: 0 0 auto; height: 32px; z-index: 40; }
   .boot { height: 100%; display: grid; place-items: center; position: relative; }
   .stop { height: 100%; position: relative; background: var(--bg); }
+  /* The window buttons need something to sit on. Without a title bar behind
+     them they hang in the middle of an empty screen, and the red on close
+     arrives out of nowhere. */
+  .stop .drag { background: var(--sidebar); border-bottom: 1px solid var(--line); }
   .drag { position: absolute; inset: 0 0 auto; height: var(--titlebar); }
   .pulse { animation: breathe 1.6s ease-in-out infinite; }
   @keyframes breathe { 0%, 100% { transform: scale(1); opacity: .85; } 50% { transform: scale(1.06); opacity: 1; } }
