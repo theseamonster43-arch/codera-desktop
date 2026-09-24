@@ -5,6 +5,8 @@
   import { claimUsername, NAME_OK, nameKey } from '../lib/actions';
   import { human } from '../lib/format';
   import { inTauri, startDrag } from '../lib/native';
+  import { signInThrough } from '../lib/handoff';
+  import Icon from '../components/Icon.svelte';
 
   let mode = $state<'in' | 'up'>('in');
   let name = $state('');
@@ -12,6 +14,23 @@
   let pass = $state('');
   let err = $state('');
   let busy = $state(false);
+
+  /**
+   * Google and GitHub. The provider's part happens in the real browser, on
+   * learncodera.com, because Firebase will not sign anyone in from an origin
+   * it cannot authorise — and Tauri's origin is one no dashboard can. What
+   * comes back through codera:// is a token, never a password.
+   */
+  async function through(provider: 'google' | 'github') {
+    err = '';
+    busy = true;
+    try {
+      await signInThrough(provider);
+    } catch (e) {
+      err = human(e);
+      busy = false;
+    }
+  }
 
   async function submit(e: Event) {
     e.preventDefault();
@@ -57,6 +76,15 @@
       {busy ? 'One moment…' : mode === 'up' ? 'Create account' : 'Sign in'}
     </button>
 
+    <div class="or"><span>or</span></div>
+
+    <button type="button" class="btn wide" disabled={busy} onclick={() => through('google')}>
+      <Icon name="google" size={18} />Continue with Google
+    </button>
+    <button type="button" class="btn wide" disabled={busy} onclick={() => through('github')}>
+      <Icon name="github" size={18} />Continue with GitHub
+    </button>
+
     <p class="swap muted">
       {mode === 'up' ? 'Already have an account?' : 'New to Codera?'}
       <button type="button" onclick={() => { mode = mode === 'up' ? 'in' : 'up'; err = ''; }}>
@@ -67,6 +95,10 @@
 </div>
 
 <style>
+  .or { display: flex; align-items: center; gap: 10px; width: 100%; margin: 4px 0 2px; }
+  .or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+  .or span { color: var(--muted); font-size: 12.5px; font-weight: 600; }
+  .wide { width: 100%; justify-content: center; gap: 9px; height: 46px; }
   .gate {
     height: 100%; display: grid; place-items: center; padding: 24px;
     background:

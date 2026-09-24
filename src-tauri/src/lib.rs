@@ -13,6 +13,8 @@ use tauri::{
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    // codera:// — how a sign-in done in the browser gets its answer back here.
+    .plugin(tauri_plugin_deep_link::init())
     .plugin(tauri_plugin_notification::init())
     .plugin(tauri_plugin_opener::init())
     // On Windows each window's frame is tinted to Codera's background once its page
